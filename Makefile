@@ -1,5 +1,9 @@
-megabuild		= 1
+# -----------------------------------------------------------------------------
+
+megabuild		= 0
 attachdebugger	= 0
+
+# -----------------------------------------------------------------------------
 
 MAKE			= make
 CP				= cp
@@ -47,11 +51,33 @@ default: all
 VPATH = src
 
 # Common source files
-ASM_SRCS = asm.s
+ASM_SRCS = asm.s decruncher.s iffl.s irqload.s
 C_SRCS = main.c
 
 OBJS = $(ASM_SRCS:%.s=$(EXE_DIR)/%.o) $(C_SRCS:%.c=$(EXE_DIR)/%.o)
 OBJS_DEBUG = $(ASM_SRCS:%.s=$(EXE_DIR)/%-debug.o) $(C_SRCS:%.c=$(EXE_DIR)/%-debug.o)
+
+BINFILES  = $(BIN_DIR)/glacial_chars0.bin
+BINFILES += $(BIN_DIR)/glacial_pal0.bin
+BINFILES += $(BIN_DIR)/song.mod
+
+BINFILESMC  = $(BIN_DIR)/glacial_chars0.bin.addr.mc
+BINFILESMC += $(BIN_DIR)/glacial_pal0.bin.addr.mc
+BINFILESMC += $(BIN_DIR)/song.mod.addr.mc
+
+# -----------------------------------------------------------------------------
+
+$(BIN_DIR)/glacial_chars0.bin: $(BIN_DIR)/glacial.bin
+	$(MC) $< cm1:2 d1:0 cl1:20000 rc1:0
+
+$(BIN_DIR)/alldata.bin: $(BINFILES)
+	$(MEGAADDRESS) $(BIN_DIR)/glacial_chars0.bin      00020000
+	$(MEGAADDRESS) $(BIN_DIR)/glacial_pal0.bin        0000c000
+	$(MEGAADDRESS) $(BIN_DIR)/song.mod                00040000
+	$(MEGACRUNCH) $(BIN_DIR)/glacial_chars0.bin.addr
+	$(MEGACRUNCH) $(BIN_DIR)/glacial_pal0.bin.addr
+	$(MEGACRUNCH) $(BIN_DIR)/song.mod.addr	
+	$(MEGAIFFL) $(BINFILESMC) $(BIN_DIR)/alldata.bin
 
 $(EXE_DIR)/%.o: %.s
 	as6502 --target=mega65 --list-file=$(@:%.o=%.lst) -o $@ $<
@@ -66,20 +92,22 @@ $(EXE_DIR)/%-debug.o: %.c
 	cc6502 --target=mega65 --debug --list-file=$(@:%.o=%.lst) -o $@ $<
 
 $(EXE_DIR)/hello.prg: $(OBJS)
-	ln6502 --target=mega65 mega65-plain.scm -o $@ $^ --core 45gs02 --output-format=prg --list-file=$(EXE_DIR)/hello.lst
+	ln6502 --target=mega65 mega65-plain.scm -o $@ $^ --core 45gs02 --output-format=prg --rtattr printf=reduced --rtattr exit=simplified --list-file=$(EXE_DIR)/hello.lst
 
 $(EXE_DIR)/hello.prg.mc: $(EXE_DIR)/hello.prg
 	$(MEGACRUNCH) -f 200e $(EXE_DIR)/hello.prg
 
-$(EXE_DIR)/hello.elf: $(OBJS_DEBUG)
-	ln6502 --target=mega65 mega65-plain.scm --debug -o $@ $^ --list-file=hello-debug.lst --semi-hosted
+# -----------------------------------------------------------------------------
 
-$(EXE_DIR)/hello.d81: $(EXE_DIR)/hello.prg.mc
+$(EXE_DIR)/hello.d81: $(EXE_DIR)/hello.prg.mc  $(BIN_DIR)/alldata.bin
 	$(RM) $@
 	$(CC1541) -n "hello" -i " 2024" -d 19 -v\
 	 \
 	 -f "hello" -w $(EXE_DIR)/hello.prg.mc \
+	 -f "data" -w $(BIN_DIR)/alldata.bin \
 	$@
+
+# -----------------------------------------------------------------------------
 
 run: $(EXE_DIR)/hello.d81
 
