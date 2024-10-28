@@ -9,12 +9,14 @@
 #include "irqload.h"
 
 extern char setborder(char a);
+extern void irq1();
+
 int main()
 {
-	__disable_interrupts();
+	__disable_interrupts();							// sei
 	
-	CPU.PORTDDR = 65;
-	CPU.PORT = 0x35;
+	CPU.PORTDDR = 65;								// enable 40Hz
+	CPU.PORT = 0b00110101;							// 0x35 = I/O area visible at $D000-$DFFF, RAM visible at $A000-$BFFF and $E000-$FFFF.
 	
 	VIC4.HOTREG = 0;								// disable hot registers
 	
@@ -23,6 +25,13 @@ int main()
 	CIA1.ICR;
 	CIA2.ICR;
 	
+	poke(0xd01a,0x00);								// disable IRQ raster interrupts because C65 uses raster interrupts in the ROM
+
+	VIC2.RC = 0x08;									// d012 = 0
+	IRQ_VECTORS.IRQ = &irq1;						// A9 71      8D FE FF      A9 20        8D FF FF
+
+	poke(0xd01a,0x01);								// ACK!
+
 	VIC3.ROM8  = 0;									// map I/O (Mega65 memory mapping)
 	VIC3.ROMA  = 0;
 	VIC3.ROMC  = 0;
@@ -89,7 +98,9 @@ int main()
 
     setborder(5);
 
-    while(1) {}
+	__enable_interrupts();							// cli
+
+    while(1) {}										//  bra *
 
     return 0;
 }
