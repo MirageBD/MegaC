@@ -6,105 +6,8 @@
 
 ; -----------------------------------------------------------------------------------------------
 
-; dc_base		= 0x02				; -
-dc_bits: .equlab _Zp
-dc_get_zp: .equlab	_Zp + 1
-
-; original data
-
-; FF FF FF FF FF FF FF FF FF FF 08 FE FE 08 FF FF
-; FF 08 FE 08 08 FE 08 FF FF FE 08 08 FE FF FE FF
-; FF FE 08 FF 08 FE FE FF FF 08 FE 08 FF FF FF FF
-; FF FF 08 FE FE FE 08 FF FF FF FF FF FF FF FF FF
-; FF FF FF FF FF FF FF FF FF FF FF 08 FE 08 FF FF
-; FF FF FF FE 08 FE FF FF FF FF 08 FE FF FE 08 FF
-; FF FF FE 08 FF 08 FE FF FF 08 FE FE FE FE FE 08
-; FF FE 08 FF FF FF 08 FE FF FF FF FF FF FF FF FF
-; FF FF FF FF FF FF FF FF FF FE FE FE FE FE 08 FF
-
-; compressed data
-
-; 0001372A
-
-; 00 00 01 00 2A FF 1E A6 08 FE FE 08 26 16 1B 03
-; 89 87 C4 73 9B 47 46 A3 63 E1 7D 8F F9 BD 04 FE
-; B0 3C C4 F1 7F B3 27 98 FE 26 FE 65 FF FF
-
-
-; 2A    0 0 1 0 1 0 1 0
-; FF    1 1 1 1 1 1 1 1
-; 1E    0 0 0 1 1 1 1 0
-; A6    1 0 1 0 0 1 1 0
-; 08    0 0 0 0 1 0 0 0
-; FE    1 1 1 1 1 1 1 0
-; FE    1 1 1 1 1 1 1 0
-; 08    0 0 0 0 1 0 0 0
-; 26    0 0 1 0 0 1 1 0
-; 16    0 0 0 1 0 1 1 0
-; 1B    0 0 0 1 1 0 1 1
-; 03    0 0 0 0 0 0 1 1
-; 89    1 0 0 0 1 0 0 1
-; 87    1 0 0 0 0 1 1 1
-; C4    1 1 0 0 0 1 0 0
-; 73    0 1 1 1 0 0 1 1
-; 9B    1 0 0 1 1 0 1 1
-; 47    0 1 0 0 0 1 1 1
-
-; ----------------------------------------------------
-
-; 0 = literal run
-; 1 = match
-
-; 2A FF 1E A6 08 FE FE 08 26 16 1B 03 89 87 C4 73
-; 9B 47 46 A3 63 E1 7D 8F F9 BD 04 FE B0 3C C4 F1
-
-; 0x0000: Lit(1, F)
-; 0x0001: Mat(1, 9, F)
-; 0x000a: Lit(4, F)
-; 0x000e: Mat(7, 4, F)
-; 0x0012: Mat(6, 2, T)
-
-; ----------------------------------------------------
-
-; 80       10000000
-; asl  1 < 00000000
-
-; bits empty, get new bits
-
-; 2a       00101010
-; rol  0 < 01010101 < 1
-
-; GETLEN (because c = 0)
-
-;      A = 1
-; asl  0 < 10101010
-; carry clear, end
-
-; GETLEN (because next sequence should be a match)
-
-;              A = 1
-; asl bits     10101000
-;              01010100 c = 1          carry is one, continue adding to A
-; asl bits     01010100
-;              10101000 c = 0
-; rol          A = 2                   7th bit 1, so continue
-; asl bits     10101000
-;              01010000 c = 1          carry is one, continue adding to A
-; asl bits     01010000
-;              10100000 c = 0
-; rol          A = 4                   7th bit 1, so continue
-; asl bits     10100000
-;              01000000 c = 1          carry is one, continue adding to A
-; asl bits     01000000
-;              10000000 c = 0
-; rol          A = 8                   7th bit 1, so continue
-; asl bits     10000000
-;              00000000 c = 0
-;                                    dc_bits = 0 -> fetch next bits
-; 
-;              A = 8
-;              00011110
-; rol bits 0 < 00111100
+dc_bits:		.equlab _Zp
+dc_get_zp:		.equlab	_Zp + 1
 
 ; -----------------------------------------------------------------------------------------------
 
@@ -141,16 +44,16 @@ next2$:
 addget:
 	clc
 	tya
-	adc dc_get_zp+0
-	sta dc_get_zp+0
+	adc zp:dc_get_zp+0
+	sta zp:dc_get_zp+0
 	bcc next$
-	lda dc_get_zp+1
+	lda zp:dc_get_zp+1
 	adc #0x00
-	sta dc_get_zp+1
+	sta zp:dc_get_zp+1
 	bcc next$
-	lda dc_get_zp+2
+	lda zp:dc_get_zp+2
 	adc #0x00
-	sta dc_get_zp+2
+	sta zp:dc_get_zp+2
 next$:
 	rts
 
@@ -166,38 +69,38 @@ glend:
 
 rolnextbit:
 	jsr getnextbit
-	rol a												; rol sets N flag
+	rol a											; rol sets N flag
 	rts
 
 getnextbit:
-	asl dc_bits
+	asl zp:dc_bits
 	bne dgend
 	pha
 	jsr getnextbyte
 	rol a
-	sta dc_bits
+	sta zp:dc_bits
 	pla
 dgend:
 	rts
 
 getnextbyte:
-	lda [dc_get_zp],z
-	inc dc_get_zp+0
+	lda [zp:dc_get_zp],z
+	inc zp:dc_get_zp+0
 	bne next$
-	inc dc_get_zp+1
+	inc zp:dc_get_zp+1
 	bne next$
-	inc dc_get_zp+2
+	inc zp:dc_get_zp+2
 next$:
 	rts
 
 ; -----------------------------------------------------------------------------------------------
 
 offsets:
-	.byte 0b11011111 ; 3								; short offsets
+	.byte 0b11011111 ; 3							; short offsets
 	.byte 0b11111011 ; 6
 	.byte 0b00000000 ; 8
 	.byte 0b10000000 ; 10
-	.byte 0b11101111 ; 4								; long offsets
+	.byte 0b11101111 ; 4							; long offsets
 	.byte 0b11111101 ; 7
 	.byte 0b10000000 ; 10
 	.byte 0b11110000 ; 13
@@ -224,7 +127,7 @@ decrunch:
 	clc
 
 	lda #0x80
-	sta dc_bits
+	sta zp:dc_bits
 
 dloop:
 	jsr getnextbit									; after this, carry is 0, bits = 01010101
@@ -234,26 +137,26 @@ dloop:
 	sta dc_llen
 	tay												; put length into y for addput
 
-	lda dc_get_zp+0
+	lda zp:dc_get_zp+0
 	sta dc_lsrc+0
-	lda dc_get_zp+1
+	lda zp:dc_get_zp+1
 	sta dc_lsrc+1
-	lda dc_get_zp+2
+	lda zp:dc_get_zp+2
 	sta dc_lsrc+2
 
 	sta 0xd707										; inline DMA copy
 	.byte 0x00										; end of job options
 	.byte 0x00										; copy
 dc_llen:
-	.word 0x0000										; count
+	.word 0x0000									; count
 dc_lsrc:
-	.word 0x0000										; src
+	.word 0x0000									; src
 	.byte 0x00										; src bank
 dc_ldst:
-	.word 0x0000										; dst
+	.word 0x0000									; dst
 	.byte 0x00										; dst bank
 	.byte 0x00										; cmd hi
-	.word 0x0000										; modulo, ignored
+	.word 0x0000									; modulo, ignored
 
 	jsr addget
 	jsr addput
@@ -323,16 +226,16 @@ next2$:
 	.byte 0x00										; end of job options
 	.byte 0x00										; copy
 dc_mlen:
-	.word 0x0000										; count
+	.word 0x0000									; count
 dc_msrc:
-	.word 0x0000										; src
+	.word 0x0000									; src
 	.byte 0x00										; src bank and flags
 dc_mdst:
-	.word 0x0000										; dst
+	.word 0x0000									; dst
 	.byte 0x00										; dst bank and flags
 dc_cmdh:
 	.byte 0x00										; cmd hi
-	.word 0x0000										; modulo, ignored
+	.word 0x0000									; modulo, ignored
 
 	ldy dc_mlen
 	jsr addput
