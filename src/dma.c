@@ -1,5 +1,5 @@
 #include "dma.h"
-#include "chips.h"
+#include "registers.h"
 
 void run_dma_job(__far char *ptr)
 {

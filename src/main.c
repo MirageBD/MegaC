@@ -1,7 +1,7 @@
 #include <calypsi/intrinsics6502.h>
 
 #include "main.h"
-#include "chips.h"
+#include "registers.h"
 #include "macros.h"
 #include "constants.h"
 
