@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include "macros.h"
 #include "registers.h"
-#include "memory.h"
+#include "dma.h"
 
 #define MAX_INSTRUMENTS						32
 #define CPU_FREQUENCY						40500000
@@ -159,7 +159,7 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 
 void modplay_playpatternrow(void)
 {
-	lcopy(0x40000 + song_offset + (current_pattern << 10) + (current_pattern_position << 4), pattern_buffer, 16);
+	dma_lcopy(0x40000 + song_offset + (current_pattern << 10) + (current_pattern_position << 4), pattern_buffer, 16);
 	if(ch_en[0]) modplay_playnote(0, &pattern_buffer[0 ]);
 	if(ch_en[1]) modplay_playnote(1, &pattern_buffer[4 ]);
 	if(ch_en[2]) modplay_playnote(2, &pattern_buffer[8 ]);
@@ -187,7 +187,7 @@ void modplay_init(unsigned long address)
 {
 	load_addr = address;
 
-	lcopy(load_addr + 1080, mod_tmpbuf, 4);									// Check if 15 or 31 instrument mode (M.K.)
+	dma_lcopy(load_addr + 1080, mod_tmpbuf, 4);									// Check if 15 or 31 instrument mode (M.K.)
 
 	mod_tmpbuf[4] = 0;
 	song_offset = 1084 - (16 * 30);
@@ -203,7 +203,7 @@ void modplay_init(unsigned long address)
 
 	for(i = 0; i < (song_offset == 1084 ? 31 : 15); i++)
 	{
-		lcopy(load_addr + 0x14 + i * 30 + 22, mod_tmpbuf, 22);				// Get instrument data for plucking
+		dma_lcopy(load_addr + 0x14 + i * 30 + 22, mod_tmpbuf, 22);				// Get instrument data for plucking
 		instrument_lengths   [i] = mod_tmpbuf[1] + (mod_tmpbuf[0] << 8);
 		instrument_lengths   [i] <<= 1;										// Redenominate instrument length into bytes
 		instrument_finetune  [i] = mod_tmpbuf[2];
@@ -215,7 +215,7 @@ void modplay_init(unsigned long address)
 	song_length = lpeek(load_addr + 950);
 	song_loop_point = lpeek(load_addr + 951);
 
-	lcopy(load_addr + 952, song_pattern_list, 128);
+	dma_lcopy(load_addr + 952, song_pattern_list, 128);
 	for(i = 0; i < song_length; i++)
 	{
 		if(song_pattern_list[i] > max_pattern)

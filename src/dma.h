@@ -66,6 +66,7 @@ struct _dma_job_far_addresses
 	unsigned short	modulo;
 };
 
-void run_dma_job(__far char *ptr);
+extern void run_dma_job(__far char *ptr);
+extern void dma_lcopy(long source_address, long destination_address, unsigned int count);
 
 #endif
