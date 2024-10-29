@@ -6,4 +6,6 @@
 
 #define RRBSCREENWIDTH		80
 
+#define PALETTE             0xc000
+
 #endif

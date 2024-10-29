@@ -4,6 +4,7 @@
 #include "registers.h"
 #include "macros.h"
 #include "constants.h"
+#include "modplay.h"
 
 #include "iffl.h"
 #include "irqload.h"
@@ -101,16 +102,26 @@ int main()
 	VIC4.LINESTEP    = RRBSCREENWIDTH << 1;
 	VIC4.CHRCOUNTLSB = RRBSCREENWIDTH;
 
+	for(uint8_t i=0; i<255; i++)
+	{
+		poke(0xd100+i, ((uint8_t *)PALETTE)[0*256+i]);
+		poke(0xd200+i, ((uint8_t *)PALETTE)[1*256+i]);
+		poke(0xd300+i, ((uint8_t *)PALETTE)[2*256+i]);
+	}
+
 	set_400();
 
 	// enable audio dma and turn off saturation
 	poke(0xd711,0b10000000);
 	poke(0xd712,0b00000000);
 
-	VIC2.BORDERCOL = 0;
-	VIC2.SCREENCOL = 0;
+   // setborder(5);
 
-    // setborder(5);
+	load_modfile();
+
+	VIC2.BORDERCOL = 14;
+	VIC2.SCREENCOL = 14;
+ 	// while(1) {}
 
 	CIA1.ICR = 0b01111111;									// disable interrupts
 	CIA2.ICR = 0b01111111;
