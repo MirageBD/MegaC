@@ -5,13 +5,13 @@
 #include "macros.h"
 #include "constants.h"
 #include "modplay.h"
-
 #include "iffl.h"
 #include "irqload.h"
 
 extern char setborder(char a);
 extern void irq1();
 extern void fastload_irq();
+void set_400();
 
 int main()
 {

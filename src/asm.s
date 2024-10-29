@@ -16,17 +16,17 @@ irq1:
 			phy
 			phz
 
-			inc foo
-			lda foo
+			inc timer
+			lda timer
 			cmp #0x04
-			bne bar
-			lda 0
-			sta foo
+			bne next$
+			lda #0x00
+			sta timer
 
 			jsr modplay_play
 			inc 0xd021
 
-bar			plz
+next$:		plz
 			ply
 			plx
 			pla
@@ -34,7 +34,7 @@ bar			plz
 			asl 0xd019
 			rti
 
-foo			.byte 0
+timer		.byte 0
 
 ; ------------------------------------------------------------------------------------
 
