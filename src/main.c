@@ -117,11 +117,16 @@ int main()
 
    // setborder(5);
 
-	load_modfile();
+	// Stop all DMA audio first
+	poke(0xd720, 0);
+	poke(0xd730, 0);
+	poke(0xd740, 0);
+	poke(0xd750, 0);
+
+	modplay_init(0x40000);
 
 	VIC2.BORDERCOL = 14;
 	VIC2.SCREENCOL = 14;
- 	// while(1) {}
 
 	CIA1.ICR = 0b01111111;									// disable interrupts
 	CIA2.ICR = 0b01111111;
