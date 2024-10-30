@@ -112,16 +112,16 @@ int main()
 	set_400();
 
 	// enable audio dma and turn off saturation
-	poke(0xd711,0b10000000);
-	poke(0xd712,0b00000000);
+	AUDIO_DMA.AUDEN = 0b10000000;
+	AUDIO_DMA.DBGSAT = 0b00000000;
 
-   // setborder(5);
+	// setborder(5);
 
 	// Stop all DMA audio first
-	poke(0xd720, 0);
-	poke(0xd730, 0);
-	poke(0xd740, 0);
-	poke(0xd750, 0);
+	AUDIO_DMA.CHANNELS[0].CONTROL = 0;
+	AUDIO_DMA.CHANNELS[1].CONTROL = 0;
+	AUDIO_DMA.CHANNELS[2].CONTROL = 0;
+	AUDIO_DMA.CHANNELS[3].CONTROL = 0;
 
 	modplay_init(0x40000);
 

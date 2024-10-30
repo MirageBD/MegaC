@@ -23,16 +23,13 @@ char mod31_sigs[NUM_SIGS][4] =
 	// 'M.K.','8CHN', '4CHN','6CHN','FLT4','FLT8' = 31 instruments.
 };
 
-unsigned short	i;
-unsigned char	a;
-
 unsigned long	load_addr;
-
 unsigned char	mod_tmpbuf[23];
 
 long			sample_rate_divisor			= 1469038;
 unsigned short	song_offset					= 1084;
-unsigned short	tempo						= RASTERS_PER_MINUTE / BEATS_PER_MINUTE / ROWS_PER_BEAT;
+unsigned short	tempobase					= RASTERS_PER_MINUTE / BEATS_PER_MINUTE / ROWS_PER_BEAT;
+unsigned short	tempo						= 0;
 unsigned long	sample_data_start			= 0x40000;
 unsigned char	max_pattern					= 0;
 unsigned char	current_pattern_index		= 0;
@@ -55,84 +52,6 @@ unsigned char	pattern_buffer				[16];
 
 // ------------------------------------------------------------------------------------
 
-void modplay_play_sample(unsigned char channel, unsigned char instrument, unsigned short period, unsigned short effect)
-{
-	unsigned ch_ofs = channel << 4;
-
-	if(channel > 3)
-		return;
-
-	freq = 0xffffL / period;
-
-	// Stop playback while loading new sample data
-	poke(0xd720 + ch_ofs, 0x00);
-
-	// Load sample address into base and current addr
-	poke(0xd721 + ch_ofs, (((unsigned short)instrument_addr[instrument]) >> 0 ) & 0xff);
-	poke(0xd722 + ch_ofs, (((unsigned short)instrument_addr[instrument]) >> 8 ) & 0xff);
-	poke(0xd723 + ch_ofs, (((unsigned long )instrument_addr[instrument]) >> 16) & 0xff);
-	poke(0xd72a + ch_ofs, (((unsigned short)instrument_addr[instrument]) >> 0 ) & 0xff);
-	poke(0xd72b + ch_ofs, (((unsigned short)instrument_addr[instrument]) >> 8 ) & 0xff);
-	poke(0xd72c + ch_ofs, (((unsigned long )instrument_addr[instrument]) >> 16) & 0xff);
-
-	// Sample top address
-	top_addr = instrument_addr[instrument] + instrument_lengths[instrument];
-	poke(0xd727 + ch_ofs, (top_addr >> 0) & 0xff);
-	poke(0xd728 + ch_ofs, (top_addr >> 8) & 0xff);
-
-	// Volume
-	poke(0xd729 + ch_ofs, instrument_vol[instrument] >> 2);
-
-	// Mirror channel quietly on other side for nicer stereo imaging
-	poke(0xd71c + channel, instrument_vol[instrument] >> 4);
-
-	// Set base addr and top addr to the looping range, if the sample has one.
-	if (instrument_loopstart[instrument])
-	{
-		poke(0xd721 + ch_ofs, (((unsigned long )instrument_addr[instrument] + 2 * instrument_loopstart[instrument]                                       ) >> 0 ) & 0xff);
-		poke(0xd722 + ch_ofs, (((unsigned long )instrument_addr[instrument] + 2 * instrument_loopstart[instrument]                                       ) >> 8 ) & 0xff);
-		poke(0xd723 + ch_ofs, (((unsigned long )instrument_addr[instrument] + 2 * instrument_loopstart[instrument]                                       ) >> 16) & 0xff);
-		poke(0xd727 + ch_ofs, (((unsigned short)instrument_addr[instrument] + 2 * (instrument_loopstart[instrument] + instrument_looplen[instrument] - 1)) >> 0 ) & 0xff);
-		poke(0xd728 + ch_ofs, (((unsigned short)instrument_addr[instrument] + 2 * (instrument_loopstart[instrument] + instrument_looplen[instrument] - 1)) >> 8 ) & 0xff);
-	}
-
-	poke(0xd770, sample_rate_divisor >> 0 );
-	poke(0xd771, sample_rate_divisor >> 8 );
-	poke(0xd772, sample_rate_divisor >> 16);
-	poke(0xd773, 0                        );
-
-	poke(0xd774, freq >> 0);
-	poke(0xd775, freq >> 8);
-	poke(0xd776, 0        );
-
-	// Pick results from output / 2^16
-	poke(0xd724 + ch_ofs, peek(0xd77a));
-	poke(0xd725 + ch_ofs, peek(0xd77b));
-	poke(0xd726 + ch_ofs, 0);
-
-	if(instrument_loopstart[instrument])
-		poke(0xd720 + ch_ofs, 0xc2); // Enable playback + looping   of channel 0, 8-bit, no unsigned samples
-	else
-		poke(0xd720 + ch_ofs, 0x82); // Enable playback + nolooping of channel 0, 8-bit, no unsigned samples
-
-	switch(effect & 0xf00)
-	{
-		case 0xf00: // Tempo / Speed
-			if((effect & 0x0ff) < 0x20)
-			{
-				tempo = RASTERS_PER_MINUTE / BEATS_PER_MINUTE / ROWS_PER_BEAT;
-				tempo = tempo * 6 / (effect & 0x1f);
-			}
-			break;
-		case 0xc00: // Channel volume
-			poke(0xd729 + ch_ofs, effect & 0xff);
-			break;
-	}
-
-	// Enable audio dma, enable bypass of audio mixer, signed samples
-	poke(0xd711, 0x80);
-}
-
 void modplay_playnote(unsigned char channel, unsigned char *note)
 {
 	unsigned char  instrument;
@@ -153,21 +72,92 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 	effect = ((note[2] & 0xf) << 8) + note[3];
 
 	if(period)
-		modplay_play_sample(channel, instrument, period, effect);
+	{
+		unsigned short channelptr = 0xd720 + (channel << 4);
+
+		freq = 0xffffL / period;
+
+		// Stop playback while loading new sample data
+		poke(channelptr, 0x00);
+
+		// Load sample address into base and current addr
+		unsigned char addrlo  = (((unsigned short)instrument_addr[instrument]) >> 0 ) & 0xff;
+		unsigned char addrmid = (((unsigned short)instrument_addr[instrument]) >> 8 ) & 0xff;
+		unsigned char addrhi  = (((unsigned long )instrument_addr[instrument]) >> 16) & 0xff;
+		poke(channelptr + 0x01, addrlo);
+		poke(channelptr + 0x02, addrmid);
+		poke(channelptr + 0x03, addrhi);
+		poke(channelptr + 0x0a, addrlo);
+		poke(channelptr + 0x0b, addrmid);
+		poke(channelptr + 0x0c, addrhi);
+
+		// Sample top address
+		top_addr = instrument_addr[instrument] + instrument_lengths[instrument];
+		poke(channelptr + 0x07, (top_addr >> 0) & 0xff);
+		poke(channelptr + 0x08, (top_addr >> 8) & 0xff);
+
+		// Volume
+		poke(channelptr + 0x09, instrument_vol[instrument] >> 2);
+
+		// Mirror channel quietly on other side for nicer stereo imaging
+		poke(0xd71c + channel, instrument_vol[instrument] >> 4);
+
+		// Set base addr and top addr to the looping range, if the sample has one.
+		if (instrument_loopstart[instrument])
+		{
+			poke(channelptr + 0x01, (((unsigned long )instrument_addr[instrument] + 2 * (instrument_loopstart[instrument]                                     )) >> 0 ) & 0xff);
+			poke(channelptr + 0x02, (((unsigned long )instrument_addr[instrument] + 2 * (instrument_loopstart[instrument]                                     )) >> 8 ) & 0xff);
+			poke(channelptr + 0x03, (((unsigned long )instrument_addr[instrument] + 2 * (instrument_loopstart[instrument]                                     )) >> 16) & 0xff);
+			poke(channelptr + 0x07, (((unsigned short)instrument_addr[instrument] + 2 * (instrument_loopstart[instrument] + instrument_looplen[instrument] - 1)) >> 0 ) & 0xff);
+			poke(channelptr + 0x08, (((unsigned short)instrument_addr[instrument] + 2 * (instrument_loopstart[instrument] + instrument_looplen[instrument] - 1)) >> 8 ) & 0xff);
+		}
+
+		poke(0xd770, sample_rate_divisor >> 0 );
+		poke(0xd771, sample_rate_divisor >> 8 );
+		poke(0xd772, sample_rate_divisor >> 16);
+		poke(0xd773, 0                        );
+
+		poke(0xd774, freq >> 0);
+		poke(0xd775, freq >> 8);
+		poke(0xd776, 0        );
+
+		// Pick results from output / 2^16
+		poke(channelptr + 0x04, peek(0xd77a));
+		poke(channelptr + 0x05, peek(0xd77b));
+		poke(channelptr + 0x06, 0);
+
+		if(instrument_loopstart[instrument])
+			poke(channelptr, 0xc2); // Enable playback + looping   of channel 0, 8-bit, no unsigned samples
+		else
+			poke(channelptr, 0x82); // Enable playback + nolooping of channel 0, 8-bit, no unsigned samples
+
+		switch(effect & 0xf00)
+		{
+			case 0xf00: // Tempo / Speed
+				if((effect & 0x0ff) < 0x20)
+				{
+					tempo = tempobase;
+					tempo *= (6 / (effect & 0x1f));
+				}
+				break;
+			case 0xc00: // Channel volume
+				poke(channelptr + 0x09, effect & 0xff);
+				break;
+		}
+
+		// Enable audio dma, enable bypass of audio mixer, signed samples
+		poke(0xd711, 0x80);
+	}
 }
 
-void modplay_playpatternrow(void)
+void modplay_play()
 {
+	// play pattern row
 	dma_lcopy(0x40000 + song_offset + (current_pattern << 10) + (current_pattern_position << 4), pattern_buffer, 16);
 	modplay_playnote(0, &pattern_buffer[0 ]);
 	modplay_playnote(1, &pattern_buffer[4 ]);
 	modplay_playnote(2, &pattern_buffer[8 ]);
 	modplay_playnote(3, &pattern_buffer[12]);
-}
-
-void modplay_play()
-{
-	modplay_playpatternrow();
 
 	current_pattern_position++;
 	
@@ -184,6 +174,9 @@ void modplay_play()
 
 void modplay_init(unsigned long address)
 {
+	unsigned short i;
+	unsigned char a;
+
 	load_addr = address;
 
 	dma_lcopy(load_addr + 1080, mod_tmpbuf, 4);								// Check if 15 or 31 instrument mode (M.K.)

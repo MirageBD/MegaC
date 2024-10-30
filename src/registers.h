@@ -493,8 +493,16 @@ struct _AUDIO_CHANNEL
 	uint8_t		TMRADDRMB;			// 0xd72f
 };
 
-struct _AUDIO_DMA					// 0xd71c
+struct _AUDIO_DMA					// 0xd711
 {
+	uint8_t		AUDEN; // AUDEN BLKD AUDWRBLK NOMIX – AUDBLKTO		0xd711
+	uint8_t		DBGSAT; // DBGLFTSAT DBGRGTSAT DBGPANLFTSAT DBGPANRGTSAT – - CHANSWAP SATURATE		0xd712
+	uint8_t		IRQCH0FLG; // IRQCH1FLG IRQCH2FLG IRQCH3FLG IRQCH0ENA IRQCH1ENA IRQCH2ENA IRQCH3ENA			0xd713
+	uint8_t		IRQCH0OFFS;			// 0xd714
+	uint8_t		IRQCH1OFFS;			// 0xd715
+	uint8_t		IRQCH2OFFS;			// 0xd716
+	uint8_t		IRQCH3OFFS;			// 0xd717
+	uint8_t		_NA3[4];			// 0xd718
 	uint8_t		CH0RVOL;			// 0xd71c
 	uint8_t		CH1RVOL;			// 0xd71d
 	uint8_t		CH2LVOL;			// 0xd71e
@@ -598,7 +606,7 @@ struct _IRQ_VECTORS					// 0xfffa
 #define KEYSCAN		(* (volatile _KEYSCAN_t *)		0xd613)
 #define DMA			(* (volatile _DMA_t *)			0xd700)
 #define MATH		(* (volatile _MATH_t *)			0xd70f)
-#define AUDIO_DMA	(* (volatile _AUDIO_DMA_t *)	0xd71c)
+#define AUDIO_DMA	(* (volatile _AUDIO_DMA_t *)	0xd711)
 #define CIA1		(* (volatile _CIA1_t *)			0xdc00)
 #define CIA2		(* (volatile _CIA2_t *)			0xdd00)
 #define IRQ_VECTORS	(* (volatile _IRQ_VECTORS_t *)	0xfffa)
