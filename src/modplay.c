@@ -73,75 +73,84 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 
 	if(period)
 	{
-		unsigned short channelptr = 0xd720 + (channel << 4);
+		unsigned ch_ofs = channel << 4;
 
-		freq = 0xffffL / period;
+		if (channel > 3)
+			return;
+
+		freq = 0xFFFFL / period;
 
 		// Stop playback while loading new sample data
-		poke(channelptr, 0x00);
+		poke(0xD720 + ch_ofs, 0x00);
 
 		// Load sample address into base and current addr
-		unsigned char addrlo  = (((unsigned short)instrument_addr[instrument]) >> 0 ) & 0xff;
-		unsigned char addrmid = (((unsigned short)instrument_addr[instrument]) >> 8 ) & 0xff;
-		unsigned char addrhi  = (((unsigned long )instrument_addr[instrument]) >> 16) & 0xff;
-		poke(channelptr + 0x01, addrlo);
-		poke(channelptr + 0x02, addrmid);
-		poke(channelptr + 0x03, addrhi);
-		poke(channelptr + 0x0a, addrlo);
-		poke(channelptr + 0x0b, addrmid);
-		poke(channelptr + 0x0c, addrhi);
+		poke(0xD721 + ch_ofs, (((unsigned short)instrument_addr[instrument]) >> 0 ) & 0xff);
+		poke(0xD722 + ch_ofs, (((unsigned short)instrument_addr[instrument]) >> 8 ) & 0xff);
+		poke(0xD723 + ch_ofs, (((unsigned long )instrument_addr[instrument]) >> 16) & 0xff);
+		poke(0xD72A + ch_ofs, (((unsigned short)instrument_addr[instrument]) >> 0 ) & 0xff);
+		poke(0xD72B + ch_ofs, (((unsigned short)instrument_addr[instrument]) >> 8 ) & 0xff);
+		poke(0xD72C + ch_ofs, (((unsigned long )instrument_addr[instrument]) >> 16) & 0xff);
 
 		// Sample top address
 		top_addr = instrument_addr[instrument] + instrument_lengths[instrument];
-		poke(channelptr + 0x07, (top_addr >> 0) & 0xff);
-		poke(channelptr + 0x08, (top_addr >> 8) & 0xff);
+		poke(0xD727 + ch_ofs, (top_addr >> 0) & 0xff);
+		poke(0xD728 + ch_ofs, (top_addr >> 8) & 0xff);
 
 		// Volume
-		poke(channelptr + 0x09, instrument_vol[instrument] >> 2);
+		poke(0xD729 + ch_ofs, instrument_vol[instrument] >> 2);
 
 		// Mirror channel quietly on other side for nicer stereo imaging
-		poke(0xd71c + channel, instrument_vol[instrument] >> 4);
+		poke(0xD71C + channel, instrument_vol[instrument] >> 4);
 
-		// Set base addr and top addr to the looping range, if the sample has one.
+		// XXX - We should set base addr and top addr to the looping range, if the sample has one.
 		if (instrument_loopstart[instrument])
 		{
-			poke(channelptr + 0x01, (((unsigned long )instrument_addr[instrument] + 2 * (instrument_loopstart[instrument]                                     )) >> 0 ) & 0xff);
-			poke(channelptr + 0x02, (((unsigned long )instrument_addr[instrument] + 2 * (instrument_loopstart[instrument]                                     )) >> 8 ) & 0xff);
-			poke(channelptr + 0x03, (((unsigned long )instrument_addr[instrument] + 2 * (instrument_loopstart[instrument]                                     )) >> 16) & 0xff);
-			poke(channelptr + 0x07, (((unsigned short)instrument_addr[instrument] + 2 * (instrument_loopstart[instrument] + instrument_looplen[instrument] - 1)) >> 0 ) & 0xff);
-			poke(channelptr + 0x08, (((unsigned short)instrument_addr[instrument] + 2 * (instrument_loopstart[instrument] + instrument_looplen[instrument] - 1)) >> 8 ) & 0xff);
+			// start of loop
+			poke(0xd721 + ch_ofs, (((unsigned long )instrument_addr[instrument] + 2 * instrument_loopstart[instrument]                                       ) >> 0 ) & 0xff);
+			poke(0xd722 + ch_ofs, (((unsigned long )instrument_addr[instrument] + 2 * instrument_loopstart[instrument]                                       ) >> 8 ) & 0xff);
+			poke(0xd723 + ch_ofs, (((unsigned long )instrument_addr[instrument] + 2 * instrument_loopstart[instrument]                                       ) >> 16) & 0xff);
+
+			// Top addr
+			poke(0xd727 + ch_ofs, (((unsigned short)instrument_addr[instrument] + 2 * (instrument_loopstart[instrument] + instrument_looplen[instrument] - 1)) >> 0 ) & 0xff);
+			poke(0xd728 + ch_ofs, (((unsigned short)instrument_addr[instrument] + 2 * (instrument_loopstart[instrument] + instrument_looplen[instrument] - 1)) >> 8 ) & 0xff);
 		}
 
-		poke(0xd770, sample_rate_divisor >> 0 );
+		poke(0xd770, sample_rate_divisor      );
 		poke(0xd771, sample_rate_divisor >> 8 );
 		poke(0xd772, sample_rate_divisor >> 16);
-		poke(0xd773, 0                        );
+		poke(0xd773, 0x00                     );
 
-		poke(0xd774, freq >> 0);
+		poke(0xd774, freq     );
 		poke(0xd775, freq >> 8);
 		poke(0xd776, 0        );
 
 		// Pick results from output / 2^16
-		poke(channelptr + 0x04, peek(0xd77a));
-		poke(channelptr + 0x05, peek(0xd77b));
-		poke(channelptr + 0x06, 0);
+		poke(0xd724 + ch_ofs, peek(0xd77a));
+		poke(0xd725 + ch_ofs, peek(0xd77b));
+		poke(0xd726 + ch_ofs, 0);
 
-		if(instrument_loopstart[instrument])
-			poke(channelptr, 0xc2); // Enable playback + looping   of channel 0, 8-bit, no unsigned samples
-		else
-			poke(channelptr, 0x82); // Enable playback + nolooping of channel 0, 8-bit, no unsigned samples
-
-		switch(effect & 0xf00)
+		if (instrument_loopstart[instrument])
 		{
-			case 0xf00: // Tempo / Speed
-				if((effect & 0x0ff) < 0x20)
+			// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
+			poke(0xd720 + ch_ofs, 0xC2);
+		}
+		else
+		{
+			// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
+			poke(0xd720 + ch_ofs, 0x82);
+		}
+
+		switch (effect & 0xf00)
+		{
+			case 0xf00: // Tempo/Speed
+				if ((effect & 0x0ff) < 0x20)
 				{
-					tempo = tempobase;
-					tempo *= (6 / (effect & 0x1f));
+					tempo = RASTERS_PER_MINUTE / BEATS_PER_MINUTE / ROWS_PER_BEAT;
+					tempo = tempo * 6 / (effect & 0x1f);
 				}
 				break;
 			case 0xc00: // Channel volume
-				poke(channelptr + 0x09, effect & 0xff);
+				poke(0xd729 + ch_ofs, effect & 0xff);
 				break;
 		}
 
@@ -153,7 +162,8 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 void modplay_play()
 {
 	// play pattern row
-	dma_lcopy(0x40000 + song_offset + (current_pattern << 10) + (current_pattern_position << 4), pattern_buffer, 16);
+	dma_lcopy(load_addr + song_offset + (current_pattern << 10) + (current_pattern_position << 4), pattern_buffer, 16);
+
 	modplay_playnote(0, &pattern_buffer[0 ]);
 	modplay_playnote(1, &pattern_buffer[4 ]);
 	modplay_playnote(2, &pattern_buffer[8 ]);
@@ -176,13 +186,15 @@ void modplay_init(unsigned long address)
 {
 	unsigned short i;
 	unsigned char a;
+	unsigned char numinstruments;
 
 	load_addr = address;
 
 	dma_lcopy(load_addr + 1080, mod_tmpbuf, 4);								// Check if 15 or 31 instrument mode (M.K.)
 
 	mod_tmpbuf[4] = 0;
-	song_offset = 1084 - (16 * 30);
+	numinstruments = 15;
+	song_offset = 1080 - (16 * 30);
 
 	for(i = 0; i < NUM_SIGS; i++)
 	{
@@ -190,12 +202,20 @@ void modplay_init(unsigned long address)
 			if(mod_tmpbuf[a] != mod31_sigs[i][a])
 				break;
 		if(a == 4)
-			song_offset = 1084;
+		{
+			numinstruments = 31;
+			song_offset = 1084;												// case for 31 instruments
+		}
 	}
 
-	for(i = 0; i < (song_offset == 1084 ? 31 : 15); i++)
+	for(i = 0; i < numinstruments; i++)
 	{
-		dma_lcopy(load_addr + 0x14 + i * 30 + 22, mod_tmpbuf, 22);			// Get instrument data for plucking
+		// 2 bytes - sample length in words. multiply by 2 for byte length
+		// 1 byte  - lower fout bits for finetune, upper for
+		// 1 byte  - volume for sample ($00-$40)
+		// 2 bytes - repeat point in words
+		// 2 bytes - repeat length in words
+		dma_lcopy(load_addr + 0x14 + i * 30 + 22, mod_tmpbuf, 8);			// Get instrument data for plucking
 		instrument_lengths   [i] = mod_tmpbuf[1] + (mod_tmpbuf[0] << 8);
 		instrument_lengths   [i] <<= 1;										// Redenominate instrument length into bytes
 		instrument_finetune  [i] = mod_tmpbuf[2];
@@ -204,17 +224,19 @@ void modplay_init(unsigned long address)
 		instrument_looplen   [i] = mod_tmpbuf[7] + (mod_tmpbuf[6] << 8);
 	}
 
-	numpatternindices = lpeek(load_addr + 950);
-	song_loop_point = lpeek(load_addr + 951);
+	numpatternindices = lpeek(load_addr + 20 + numinstruments*30 + 0);
+	song_loop_point = lpeek(load_addr + 20 + numinstruments*30 + 1);
 
-	dma_lcopy(load_addr + 952, song_pattern_list, 128);
+	dma_lcopy(load_addr + 20 + numinstruments*30 + 2, song_pattern_list, 128);
 	for(i = 0; i < numpatternindices; i++)
 	{
 		if(song_pattern_list[i] > max_pattern)
 			max_pattern = song_pattern_list[i];
 	}
 
-	sample_data_start = load_addr + song_offset + (max_pattern + 1) * 1024;
+	sample_data_start = load_addr + song_offset + ((unsigned long)max_pattern + 1) * 1024;
+
+	// while(1) { poke(0xd020, peek(0xd020)+1); }
 
 	for(i = 0; i < MAX_INSTRUMENTS; i++)
 	{

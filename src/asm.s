@@ -18,7 +18,7 @@ irq1:
 
 			inc timer
 			lda timer
-			cmp #0x04
+			cmp #0x07
 			bne next$
 			lda #0x00
 			sta timer
