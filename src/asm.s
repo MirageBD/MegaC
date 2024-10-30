@@ -23,7 +23,9 @@ irq1:
 			lda #0x00
 			sta timer
 
+			inc 0xd020
 			jsr modplay_play
+			dec 0xd020
 			inc 0xd021
 
 next$:		plz

@@ -24,7 +24,7 @@ char mod31_sigs[NUM_SIGS][4] =
 };
 
 unsigned short	i;
-unsigned char	a, b, c, d;
+unsigned char	a;
 
 unsigned long	load_addr;
 
@@ -35,11 +35,11 @@ unsigned short	song_offset					= 1084;
 unsigned short	tempo						= RASTERS_PER_MINUTE / BEATS_PER_MINUTE / ROWS_PER_BEAT;
 unsigned long	sample_data_start			= 0x40000;
 unsigned char	max_pattern					= 0;
-unsigned char	current_pattern_in_song		= 0;
+unsigned char	current_pattern_index		= 0;
 unsigned char	current_pattern				= 0;
 unsigned char	current_pattern_position	= 0;
-unsigned char	song_length;
-unsigned char	song_loop_point;
+unsigned char	numpatternindices;
+unsigned char	song_loop_point; // unused
 unsigned short	top_addr;
 unsigned short	freq;
 
@@ -52,7 +52,6 @@ unsigned char	instrument_vol				[MAX_INSTRUMENTS];
 unsigned char	song_pattern_list			[128];
 unsigned char	last_instruments			[4] = { 0, 0, 0, 0 };
 unsigned char	pattern_buffer				[16];
-unsigned		ch_en						[4] = { 1, 1, 1, 1 };
 
 // ------------------------------------------------------------------------------------
 
@@ -160,10 +159,10 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 void modplay_playpatternrow(void)
 {
 	dma_lcopy(0x40000 + song_offset + (current_pattern << 10) + (current_pattern_position << 4), pattern_buffer, 16);
-	if(ch_en[0]) modplay_playnote(0, &pattern_buffer[0 ]);
-	if(ch_en[1]) modplay_playnote(1, &pattern_buffer[4 ]);
-	if(ch_en[2]) modplay_playnote(2, &pattern_buffer[8 ]);
-	if(ch_en[3]) modplay_playnote(3, &pattern_buffer[12]);
+	modplay_playnote(0, &pattern_buffer[0 ]);
+	modplay_playnote(1, &pattern_buffer[4 ]);
+	modplay_playnote(2, &pattern_buffer[8 ]);
+	modplay_playnote(3, &pattern_buffer[12]);
 }
 
 void modplay_play()
@@ -175,10 +174,10 @@ void modplay_play()
 	if(current_pattern_position > 0x3f)
 	{
 		current_pattern_position = 0x00;
-		current_pattern_in_song++;
-		if(current_pattern_in_song == song_length)
-			current_pattern_in_song = 0;
-		current_pattern = song_pattern_list[current_pattern_in_song];
+		current_pattern_index++;
+		if(current_pattern_index == numpatternindices)
+			current_pattern_index = 0;
+		current_pattern = song_pattern_list[current_pattern_index];
 		current_pattern_position = 0;
 	}
 }
@@ -187,7 +186,7 @@ void modplay_init(unsigned long address)
 {
 	load_addr = address;
 
-	dma_lcopy(load_addr + 1080, mod_tmpbuf, 4);									// Check if 15 or 31 instrument mode (M.K.)
+	dma_lcopy(load_addr + 1080, mod_tmpbuf, 4);								// Check if 15 or 31 instrument mode (M.K.)
 
 	mod_tmpbuf[4] = 0;
 	song_offset = 1084 - (16 * 30);
@@ -203,7 +202,7 @@ void modplay_init(unsigned long address)
 
 	for(i = 0; i < (song_offset == 1084 ? 31 : 15); i++)
 	{
-		dma_lcopy(load_addr + 0x14 + i * 30 + 22, mod_tmpbuf, 22);				// Get instrument data for plucking
+		dma_lcopy(load_addr + 0x14 + i * 30 + 22, mod_tmpbuf, 22);			// Get instrument data for plucking
 		instrument_lengths   [i] = mod_tmpbuf[1] + (mod_tmpbuf[0] << 8);
 		instrument_lengths   [i] <<= 1;										// Redenominate instrument length into bytes
 		instrument_finetune  [i] = mod_tmpbuf[2];
@@ -212,11 +211,11 @@ void modplay_init(unsigned long address)
 		instrument_looplen   [i] = mod_tmpbuf[7] + (mod_tmpbuf[6] << 8);
 	}
 
-	song_length = lpeek(load_addr + 950);
+	numpatternindices = lpeek(load_addr + 950);
 	song_loop_point = lpeek(load_addr + 951);
 
 	dma_lcopy(load_addr + 952, song_pattern_list, 128);
-	for(i = 0; i < song_length; i++)
+	for(i = 0; i < numpatternindices; i++)
 	{
 		if(song_pattern_list[i] > max_pattern)
 			max_pattern = song_pattern_list[i];
@@ -230,7 +229,7 @@ void modplay_init(unsigned long address)
 		sample_data_start += instrument_lengths[i];
 	}
 
-	current_pattern_in_song = 0;
+	current_pattern_index = 0;
 	current_pattern = song_pattern_list[0];
 	current_pattern_position = 0;
 
