@@ -71,9 +71,9 @@ $(BIN_DIR)/glacial_chars0.bin: $(BIN_DIR)/glacial.bin
 	$(MC) $< cm1:2 d1:0 cl1:20000 rc1:0
 
 $(BIN_DIR)/alldata.bin: $(BINFILES)
-	$(MEGAADDRESS) $(BIN_DIR)/glacial_chars0.bin      00020000
+	$(MEGAADDRESS) $(BIN_DIR)/glacial_chars0.bin      00010000
 	$(MEGAADDRESS) $(BIN_DIR)/glacial_pal0.bin        0000c000
-	$(MEGAADDRESS) $(BIN_DIR)/song.mod                00040000
+	$(MEGAADDRESS) $(BIN_DIR)/song.mod                00020000
 	$(MEGACRUNCH) $(BIN_DIR)/glacial_chars0.bin.addr
 	$(MEGACRUNCH) $(BIN_DIR)/glacial_pal0.bin.addr
 	$(MEGACRUNCH) $(BIN_DIR)/song.mod.addr	

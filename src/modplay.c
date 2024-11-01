@@ -6,8 +6,10 @@
 #include "dma.h"
 
 /*
-	for an 125 BPM song (125 being the highest), _my_ tempo is $0ea0 raster lines, which is (3744/312) = 12 screens (but for some reason 6... physical vs other raster lines???)
-	but the ticks per row can be anything from 1 to 31 (6 being the default)
+	WE'RE IN 640x400 MODE, SO WE'VE GOT (2*312) RASTERLINES!!!
+
+	for an 125 BPM song (125 being the highest), _my_ tempo is $0ea0 raster lines, which is (3744/(2*312)) = 6 screens
+	but the ticks per row can be anything from 1 to 31 (6 being the default... DOES 6 TICKS PER ROW CORRESPOND WITH THE 6 SCREENS CALCULATED ABOVE?!?)
 */
 
 /*
@@ -66,7 +68,8 @@
 #define MAX_INSTRUMENTS						32
 #define CPU_FREQUENCY						40500000
 #define AMIGA_PAULA_CLOCK					(70937892 / 20) // CPU clock / 20
-#define RASTERS_PER_SECOND					(unsigned long)(312 * 50)	// PAL 0-311, NTSC 0-262
+#define NUMRASTERS							(unsigned long)(2 * 312)
+#define RASTERS_PER_SECOND					(unsigned long)(NUMRASTERS * 50)	// PAL 0-311, NTSC 0-262
 #define RASTERS_PER_MINUTE					(unsigned long)(RASTERS_PER_SECOND * 60)
 #define ROWS_PER_BEAT						4
 
@@ -213,13 +216,13 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 		case 0xf00: // Speed!!!
 			if ((effect & 0x0ff) < 0x20) // speed (00-1F) / tempo (20-FF)
 			{
-				tempo = RASTERS_PER_MINUTE / beatsperminute / 2; // ROWS_PER_BEAT;
-				tempo *= 6 / (effect & 0x1f); // F - Set Speed Fxx : speed (00-1F) / tempo (20-FF)
+				tempo = RASTERS_PER_MINUTE / beatsperminute / ROWS_PER_BEAT;
+				tempo *= 6 / (effect & 0x1f);
 			}
 			else // effect & 0x0ff >= 0x20
 			{
 				beatsperminute = (effect & 0xff);
-				tempo = RASTERS_PER_MINUTE / beatsperminute / 2; // / ROWS_PER_BEAT;
+				tempo = RASTERS_PER_MINUTE / beatsperminute / ROWS_PER_BEAT;
 			}
 			break;
 		case 0xc00: // Channel volume
@@ -318,10 +321,7 @@ void modplay_init(unsigned long address)
 	current_pattern = song_pattern_list[0];
 	current_pattern_position = 0;
 
-	unsigned long ticksperrow = 6;
-	unsigned long bpm = 125;
-	tempo = RASTERS_PER_MINUTE / beatsperminute;
-	tempo = tempo / 2;
+	tempo = RASTERS_PER_MINUTE / beatsperminute / ROWS_PER_BEAT;;
 
 	// while(1) { poke(0xd020, peek(0xd020)+1); }
 

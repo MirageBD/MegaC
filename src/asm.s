@@ -26,12 +26,12 @@ playloop:
 			lda 0xd012
 			sta startraster
 
-			lda #0x04
+			lda #0x01
 			sta 0xd020
 
 			jsr modplay_play
 
-			lda #0x01
+			lda #0x00
 			sta 0xd020
 
 			sec
@@ -52,7 +52,7 @@ playloop:
 waitx:		lda 0xd012
 waitr:		cmp 0xd012
 			beq waitr
-			inc 0xd020
+			;inc 0xd020
 			dex
 			bne waitx
 			dey
@@ -78,17 +78,23 @@ irqvblank:
 			phy
 			phz
 
-			inc frametimer
-			lda frametimer
-			cmp #0x06				; 6 frames for 125 BPM ????
-			bne next$
-			lda #0x00
-			sta frametimer
+			sec
+			lda tempodec+0
+			sbc #0x70						; decrease with <(2 * 312)
+			sta tempodec+0
+			lda tempodec+1
+			sbc #0x02						; decrease with >(2 * 312)
+			sta tempodec+1
+			bcs next$
 
-			lda #0x04
+			lda #0x01
 			sta 0xd020
 			jsr modplay_play
-			lda #0x01
+			lda tempo+0
+			sta tempodec+0
+			lda tempo+1
+			sta tempodec+1
+			lda #0x00
 			sta 0xd020
 
 next$:		plz
@@ -99,7 +105,8 @@ next$:		plz
 			asl 0xd019
 			rti
 
-frametimer	.byte 0
+frametimer		.byte 0
+tempodec		.word 0x0ea0
 
 ; ------------------------------------------------------------------------------------
 

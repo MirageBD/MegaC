@@ -12,7 +12,6 @@ extern char setborder(char a);
 extern void irqcia();
 extern void irqvblank();
 extern void fastload_irq();
-void set_400();
 
 int main()
 {
@@ -77,40 +76,40 @@ int main()
 
 	VIC3.H640 = 1;											// enable 640 horizontal width
 
-	VIC4.CHR16 = 1;											// use wide character lookup (i.e. character data anywhere in memory)
+	//VIC4.CHR16 = 1;											// use wide character lookup (i.e. character data anywhere in memory)
 	
-	VIC2.MCM = 1;											// set multicolor mode
+	//VIC2.MCM = 1;											// set multicolor mode
 	
-	VIC4.FCLRLO = 1;										// lower block, i.e. 0-255		// use NCM and FCM for all characters
-	VIC4.FCLRHI = 1;										// everything above 255
+	//VIC4.FCLRLO = 1;										// lower block, i.e. 0-255		// use NCM and FCM for all characters
+	//VIC4.FCLRHI = 1;										// everything above 255
 
-	VIC4.NORRDEL = 0;										// enable rrb double buffering
+	//VIC4.NORRDEL = 0;										// enable rrb double buffering
 	
 	VIC3.V400    = 1;										// enable 400 vertical height
 	VIC4.CHRYSCL = 0;
 	VIC4.CHRXSCL = 0x78;
 
-	VIC4.DBLRR = 0;											// disable double-height rrb
+	//VIC4.DBLRR = 0;											// disable double-height rrb
 
-	VIC4.SCRNPTR    = (SCREEN & 0xffff);					// set screen pointer
-	VIC4.SCRNPTRBNK = (SCREEN & 0xf0000) >> 16;
-	VIC4.SCRNPTRMB  = 0x0;
+	//VIC4.SCRNPTR    = (SCREEN & 0xffff);					// set screen pointer
+	//VIC4.SCRNPTRBNK = (SCREEN & 0xf0000) >> 16;
+	//VIC4.SCRNPTRMB  = 0x0;
 
-	VIC4.COLPTR = COLOR_RAM_OFFSET;							// set offset to colour ram, so we can use continuous memory
+	//VIC4.COLPTR = COLOR_RAM_OFFSET;							// set offset to colour ram, so we can use continuous memory
 
-	VIC4.CHRCOUNTMSB = RRBSCREENWIDTH >> 8;					// set RRB screenwidth and linestep
-	VIC4.DISPROWS    = RRBSCREENWIDTH;
-	VIC4.LINESTEP    = RRBSCREENWIDTH << 1;
-	VIC4.CHRCOUNTLSB = RRBSCREENWIDTH;
+	//VIC4.CHRCOUNTMSB = RRBSCREENWIDTH >> 8;					// set RRB screenwidth and linestep
+	//VIC4.DISPROWS    = RRBSCREENWIDTH;
+	//VIC4.LINESTEP    = RRBSCREENWIDTH << 1;
+	//VIC4.CHRCOUNTLSB = RRBSCREENWIDTH;
 
+	/*
 	for(uint8_t i=0; i<255; i++)
 	{
 		poke(0xd100+i, ((uint8_t *)PALETTE)[0*256+i]);
 		poke(0xd200+i, ((uint8_t *)PALETTE)[1*256+i]);
 		poke(0xd300+i, ((uint8_t *)PALETTE)[2*256+i]);
 	}
-
-	set_400();
+	*/
 
 	// enable audio dma and turn off saturation
 	AUDIO_DMA.AUDEN = 0b10000000;
@@ -124,10 +123,10 @@ int main()
 	AUDIO_DMA.CHANNELS[2].CONTROL = 0;
 	AUDIO_DMA.CHANNELS[3].CONTROL = 0;
 
-	modplay_init(0x40000);
+	modplay_init(0x20000);
 
-	VIC2.BORDERCOL = 14;
-	VIC2.SCREENCOL = 14;
+	//VIC2.BORDERCOL = 14;
+	//VIC2.SCREENCOL = 14;
 
 	CIA1.ICR = 0b01111111;									// disable interrupts
 	CIA2.ICR = 0b01111111;
@@ -137,8 +136,8 @@ int main()
 	poke(0xd01a,0x00);										// disable IRQ raster interrupts because C65 uses raster interrupts in the ROM
 
 	VIC2.RC = 0x08;											// d012 = 8
-	// IRQ_VECTORS.IRQ = (volatile uint16_t)&irqcia;
-	IRQ_VECTORS.IRQ = (volatile uint16_t)&irqvblank;
+	IRQ_VECTORS.IRQ = (volatile uint16_t)&irqcia;
+	// IRQ_VECTORS.IRQ = (volatile uint16_t)&irqvblank;
 
 	poke(0xd01a,0x01);										// ACK!
 
@@ -148,26 +147,4 @@ int main()
 
     while(1) {}												//  bra *
     return 0;
-}
-
-void set_400()
-{
-	if (VIC4.PALNTSC)
-	{
-		VIC4.TBDRPOSLSB  = 0x37;
-		VIC4.TBDRPOSMSB  = 0;
-		VIC4.BBDRPOSLSB  = 0xc7;
-		VIC4.BBDRPOSMSB  = 0x1;
-		VIC4.TEXTYPOSLSB = 0x37;
-		VIC4.TEXTYPOSMSB = 0;
-	}
-	else
-	{
-		VIC4.TBDRPOSLSB  = 0x68;
-		VIC4.TBDRPOSMSB  = 0;
-		VIC4.BBDRPOSLSB  = 0xf8;
-		VIC4.BBDRPOSMSB  = 0x1;
-		VIC4.TEXTYPOSLSB = 0x68;
-		VIC4.TEXTYPOSMSB = 0;
-	}
 }
