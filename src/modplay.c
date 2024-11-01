@@ -110,17 +110,17 @@ unsigned char	song_loop_point; // unused
 unsigned short	top_addr;
 unsigned short	freq;
 
-unsigned short	instrument_lengths			[MAX_INSTRUMENTS];
-unsigned short	instrument_loopstart		[MAX_INSTRUMENTS];
-unsigned short	instrument_looplen			[MAX_INSTRUMENTS];
-unsigned char	instrument_finetune			[MAX_INSTRUMENTS];
-unsigned long	instrument_addr				[MAX_INSTRUMENTS];
-unsigned char	instrument_vol				[MAX_INSTRUMENTS];
+unsigned short	sample_lengths				[MAX_INSTRUMENTS];
+unsigned short	sample_loopstart			[MAX_INSTRUMENTS];
+unsigned short	sample_looplen				[MAX_INSTRUMENTS];
+unsigned char	sample_finetune				[MAX_INSTRUMENTS];
+unsigned long	sample_addr					[MAX_INSTRUMENTS];
+unsigned char	sample_vol					[MAX_INSTRUMENTS];
 unsigned char	song_pattern_list			[128];
 unsigned char	last_instruments			[4] = { 0, 0, 0, 0 };
 unsigned char	pattern_buffer				[16];
 
-unsigned char  instrument;
+unsigned char  samplenum;
 unsigned short period;
 unsigned short effect;
 
@@ -131,20 +131,20 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 	//	if (channel > 3)
 	//		return;
 
-	instrument  = note[0]  & 0xf0;
-	instrument |= note[2] >> 4;
+	samplenum  = note[0]  & 0xf0;
+	samplenum |= note[2] >> 4;
 
-	if(!instrument)
-		instrument = last_instruments[channel];
+	if(!samplenum)
+		samplenum = last_instruments[channel];
 	else
-		instrument--;
+		samplenum--;
 
-	last_instruments[channel] = instrument;
+	last_instruments[channel] = samplenum;
 
 	period = ((note[0] & 0xf) << 8) + note[1];
 	effect = ((note[2] & 0xf) << 8) + note[3];
 
-	unsigned ch_ofs = channel << 4;
+	unsigned char ch_ofs = channel << 4;
 
 	if(period)
 	{
@@ -154,35 +154,35 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 		poke(0xd720 + ch_ofs, 0x00);
 
 		// Load sample address into base and current addr
-		poke(0xd721 + ch_ofs, (((unsigned short)instrument_addr[instrument]) >> 0 ) & 0xff);
-		poke(0xd722 + ch_ofs, (((unsigned short)instrument_addr[instrument]) >> 8 ) & 0xff);
-		poke(0xd723 + ch_ofs, (((unsigned long )instrument_addr[instrument]) >> 16) & 0xff);
-		poke(0xd72a + ch_ofs, (((unsigned short)instrument_addr[instrument]) >> 0 ) & 0xff);
-		poke(0xd72b + ch_ofs, (((unsigned short)instrument_addr[instrument]) >> 8 ) & 0xff);
-		poke(0xd72c + ch_ofs, (((unsigned long )instrument_addr[instrument]) >> 16) & 0xff);
+		poke(0xd721 + ch_ofs, (((unsigned short)sample_addr[samplenum]) >> 0 ) & 0xff);
+		poke(0xd722 + ch_ofs, (((unsigned short)sample_addr[samplenum]) >> 8 ) & 0xff);
+		poke(0xd723 + ch_ofs, (((unsigned long )sample_addr[samplenum]) >> 16) & 0xff);
+		poke(0xd72a + ch_ofs, (((unsigned short)sample_addr[samplenum]) >> 0 ) & 0xff);
+		poke(0xd72b + ch_ofs, (((unsigned short)sample_addr[samplenum]) >> 8 ) & 0xff);
+		poke(0xd72c + ch_ofs, (((unsigned long )sample_addr[samplenum]) >> 16) & 0xff);
 
 		// Sample top address
-		top_addr = instrument_addr[instrument] + instrument_lengths[instrument];
+		top_addr = sample_addr[samplenum] + sample_lengths[samplenum];
 		poke(0xd727 + ch_ofs, (top_addr >> 0) & 0xff);
 		poke(0xd728 + ch_ofs, (top_addr >> 8) & 0xff);
 
 		// Volume
-		poke(0xd729 + ch_ofs, instrument_vol[instrument] >> 2);
+		poke(0xd729 + ch_ofs, sample_vol[samplenum] >> 2);
 
 		// Mirror channel quietly on other side for nicer stereo imaging
-		poke(0xd71c + channel, instrument_vol[instrument] >> 4);
+		poke(0xd71c + channel, sample_vol[samplenum] >> 4);
 
 		// XXX - We should set base addr and top addr to the looping range, if the sample has one.
-		if (instrument_loopstart[instrument])
+		if (sample_loopstart[samplenum])
 		{
 			// start of loop
-			poke(0xd721 + ch_ofs, (((unsigned long )instrument_addr[instrument] + 2 * instrument_loopstart[instrument]                                       ) >> 0 ) & 0xff);
-			poke(0xd722 + ch_ofs, (((unsigned long )instrument_addr[instrument] + 2 * instrument_loopstart[instrument]                                       ) >> 8 ) & 0xff);
-			poke(0xd723 + ch_ofs, (((unsigned long )instrument_addr[instrument] + 2 * instrument_loopstart[instrument]                                       ) >> 16) & 0xff);
+			poke(0xd721 + ch_ofs, (((unsigned long )sample_addr[samplenum] + 2 * sample_loopstart[samplenum]                                  ) >> 0 ) & 0xff);
+			poke(0xd722 + ch_ofs, (((unsigned long )sample_addr[samplenum] + 2 * sample_loopstart[samplenum]                                  ) >> 8 ) & 0xff);
+			poke(0xd723 + ch_ofs, (((unsigned long )sample_addr[samplenum] + 2 * sample_loopstart[samplenum]                                  ) >> 16) & 0xff);
 
 			// Top addr
-			poke(0xd727 + ch_ofs, (((unsigned short)instrument_addr[instrument] + 2 * (instrument_loopstart[instrument] + instrument_looplen[instrument] - 1)) >> 0 ) & 0xff);
-			poke(0xd728 + ch_ofs, (((unsigned short)instrument_addr[instrument] + 2 * (instrument_loopstart[instrument] + instrument_looplen[instrument] - 1)) >> 8 ) & 0xff);
+			poke(0xd727 + ch_ofs, (((unsigned short)sample_addr[samplenum] + 2 * (sample_loopstart[samplenum] + sample_looplen[samplenum] - 1)) >> 0 ) & 0xff);
+			poke(0xd728 + ch_ofs, (((unsigned short)sample_addr[samplenum] + 2 * (sample_loopstart[samplenum] + sample_looplen[samplenum] - 1)) >> 8 ) & 0xff);
 		}
 
 		poke(0xd770, sample_rate_divisor      );
@@ -199,7 +199,7 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 		poke(0xd725 + ch_ofs, peek(0xd77b));
 		poke(0xd726 + ch_ofs, 0);
 
-		if (instrument_loopstart[instrument])
+		if (sample_loopstart[samplenum])
 		{
 			// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
 			poke(0xd720 + ch_ofs, 0xC2);
@@ -211,41 +211,8 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 		}
 	}
 
-/*
-	0 - Normal play or Arpeggio             0xy : x-first halfnote add, y-second
-	1 - Slide Up                            1xx : upspeed
-	2 - Slide Down                          2xx : downspeed
-	3 - Tone Portamento                     3xx : up/down speed
-	4 - Vibrato                             4xy : x-speed,   y-depth
-	5 - Tone Portamento + Volume Slide      5xy : x-upspeed, y-downspeed
-	6 - Vibrato + Volume Slide              6xy : x-upspeed, y-downspeed
-	7 - Tremolo                             7xy : x-speed,   y-depth
-	8 - NOT USED
-	9 - Set SampleOffset                    9xx : offset (23 -> 2300)
-	A - VolumeSlide                         Axy : x-upspeed, y-downspeed
-	B - Position Jump                       Bxx : songposition
-	C - Set Volume                          Cxx : volume, 00-40
-	D - Pattern Break                       Dxx : break position in next patt
-	E - E-Commands                          Exy : see below...
-	F - Set Speed                           Fxx : speed (00-1F) / tempo (20-FF)
-	----------------------------------------------------------------------------
-	E0- Set Filter                          E0x : 0-filter on, 1-filter off
-	E1- FineSlide Up                        E1x : value
-	E2- FineSlide Down                      E2x : value
-	E3- Glissando Control                   E3x : 0-off, 1-on (use with tonep.)
-	E4- Set Vibrato Waveform                E4x : 0-sine, 1-ramp down, 2-square
-	E5- Set Loop                            E5x : set loop point
-	E6- Jump to Loop                        E6x : jump to loop, play x times
-	E7- Set Tremolo Waveform                E7x : 0-sine, 1-ramp down. 2-square
-	E8- NOT USED
-	E9- Retrig Note                         E9x : retrig from note + x vblanks
-	EA- Fine VolumeSlide Up                 EAx : add x to volume
-	EB- Fine VolumeSlide Down               EBx : subtract x from volume
-	EC- NoteCut                             ECx : cut from note + x vblanks
-	ED- NoteDelay                           EDx : delay note x vblanks
-	EE- PatternDelay                        EEx : delay pattern x notes
-	EF- Invert Loop                         EFx : speed
-*/
+	// LV TODO - disable audio channels that I'm not interested in while debugging,
+	// but keep their effects running?
 
 	switch (effect & 0xf00)
 	{
@@ -276,9 +243,9 @@ void modplay_play()
 	dma_lcopy(load_addr + song_offset + (current_pattern << 10) + (current_pattern_position << 4), pattern_buffer, 16);
 
 	modplay_playnote(0, &pattern_buffer[0 ]);
-	//modplay_playnote(1, &pattern_buffer[4 ]);
-	//modplay_playnote(2, &pattern_buffer[8 ]);
-	//modplay_playnote(3, &pattern_buffer[12]);
+	modplay_playnote(1, &pattern_buffer[4 ]);
+	modplay_playnote(2, &pattern_buffer[8 ]);
+	modplay_playnote(3, &pattern_buffer[12]);
 
 	current_pattern_position++;
 	
@@ -327,12 +294,12 @@ void modplay_init(unsigned long address)
 		// 2 bytes - repeat point in words
 		// 2 bytes - repeat length in words
 		dma_lcopy(load_addr + 0x14 + i * 30 + 22, mod_tmpbuf, 8);			// Get instrument data for plucking
-		instrument_lengths   [i] = mod_tmpbuf[1] + (mod_tmpbuf[0] << 8);
-		instrument_lengths   [i] <<= 1;										// Redenominate instrument length into bytes
-		instrument_finetune  [i] = mod_tmpbuf[2];
-		instrument_vol       [i] = mod_tmpbuf[3];							// Instrument volume
-		instrument_loopstart [i] = mod_tmpbuf[5] + (mod_tmpbuf[4] << 8);	// Repeat start point and end point
-		instrument_looplen   [i] = mod_tmpbuf[7] + (mod_tmpbuf[6] << 8);
+		sample_lengths   [i] = mod_tmpbuf[1] + (mod_tmpbuf[0] << 8);
+		sample_lengths   [i] <<= 1;											// Redenominate instrument length into bytes
+		sample_finetune  [i] = mod_tmpbuf[2];
+		sample_vol       [i] = mod_tmpbuf[3];								// Instrument volume
+		sample_loopstart [i] = mod_tmpbuf[5] + (mod_tmpbuf[4] << 8);		// Repeat start point and end point
+		sample_looplen   [i] = mod_tmpbuf[7] + (mod_tmpbuf[6] << 8);
 	}
 
 	numpatternindices = lpeek(load_addr + 20 + numinstruments*30 + 0);
@@ -349,8 +316,8 @@ void modplay_init(unsigned long address)
 
 	for(i = 0; i < MAX_INSTRUMENTS; i++)
 	{
-		instrument_addr[i] = sample_data_start;
-		sample_data_start += instrument_lengths[i];
+		sample_addr[i] = sample_data_start;
+		sample_data_start += sample_lengths[i];
 	}
 
 	current_pattern_index = 0;

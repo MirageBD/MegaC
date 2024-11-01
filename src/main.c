@@ -135,7 +135,7 @@ int main()
 	
 	poke(0xd01a,0x00);										// disable IRQ raster interrupts because C65 uses raster interrupts in the ROM
 
-	VIC2.RC = 0x08;											// d012 = 8
+	VIC2.RC = 0x40;											// d012 = 8
 	IRQ_VECTORS.IRQ = (volatile uint16_t)&irqcia;
 	// IRQ_VECTORS.IRQ = (volatile uint16_t)&irqvblank;
 
