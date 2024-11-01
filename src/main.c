@@ -9,7 +9,8 @@
 #include "irqload.h"
 
 extern char setborder(char a);
-extern void irq1();
+extern void irqcia();
+extern void irqvblank();
 extern void fastload_irq();
 void set_400();
 
@@ -136,7 +137,8 @@ int main()
 	poke(0xd01a,0x00);										// disable IRQ raster interrupts because C65 uses raster interrupts in the ROM
 
 	VIC2.RC = 0x08;											// d012 = 8
-	IRQ_VECTORS.IRQ = (volatile uint16_t)&irq1;				// A9 71 8D FE FF A9 20 8D FF FF
+	// IRQ_VECTORS.IRQ = (volatile uint16_t)&irqcia;
+	IRQ_VECTORS.IRQ = (volatile uint16_t)&irqvblank;
 
 	poke(0xd01a,0x01);										// ACK!
 

@@ -14,8 +14,8 @@ startraster:		.byte 0
 playtimetaken:		.byte 0
 compensatedtempo:	.byte 0
 
-			.public irq1
-irq1:
+			.public irqcia
+irqcia:
 			php
 			pha
 			phx
@@ -52,6 +52,7 @@ playloop:
 waitx:		lda 0xd012
 waitr:		cmp 0xd012
 			beq waitr
+			inc 0xd020
 			dex
 			bne waitx
 			dey
@@ -60,6 +61,37 @@ waitr:		cmp 0xd012
 			jmp playloop
 
 			plz
+			ply
+			plx
+			pla
+			plp
+			asl 0xd019
+			rti
+
+; ------------------------------------------------------------------------------------
+
+			.public irqvblank
+irqvblank:
+			php
+			pha
+			phx
+			phy
+			phz
+
+			inc frametimer
+			lda frametimer
+			cmp #0x06				; 6 frames for 125 BPM ????
+			bne next$
+			lda #0x00
+			sta frametimer
+
+			lda #0x04
+			sta 0xd020
+			jsr modplay_play
+			lda #0x01
+			sta 0xd020
+
+next$:		plz
 			ply
 			plx
 			pla
