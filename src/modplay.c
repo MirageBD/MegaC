@@ -26,9 +26,6 @@ long			sample_rate_divisor			= 1468299;
 
 unsigned char   beats_per_minute			= 125;
 unsigned short	song_offset					= 0;
-unsigned short	tempo						= 0;
-unsigned char	ticks						= 0;
-unsigned char	speed						= 0; // speed gets fed into ticks. ticks decreases every frame until 0, which triggers a row increase.
 unsigned long	sample_data_start			= 0;
 unsigned char	max_pattern					= 0;
 unsigned char	current_pattern_index		= 0;
@@ -61,9 +58,13 @@ unsigned char   sample_address1;
 unsigned char   sample_address2;
 unsigned char   sample_address3;
 
+extern unsigned short	tempo;
+extern unsigned char	ticks;
+extern unsigned char	speed;
+
 // ------------------------------------------------------------------------------------
 
-void modplay_playnote(unsigned char channel, unsigned char *note)
+void modplay_playnote_c(unsigned char channel, unsigned char *note)
 {
 	samplenum  = note[0] & 0xf0;
 	samplenum |= note[2] >> 4;
@@ -188,15 +189,15 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 	poke(0xd711, 0b10010000);																								// Enable audio dma, enable bypass of audio mixer
 }
 
-void modplay_play()
+void modplay_play_c()
 {
 	// play pattern row
 	dma_lcopy(load_addr + song_offset + (current_pattern << 10) + (current_row << 4), (unsigned long)pattern_buffer, 16);
 
-	modplay_playnote(0, &pattern_buffer[0 ]);
-	modplay_playnote(1, &pattern_buffer[4 ]);
-	modplay_playnote(2, &pattern_buffer[8 ]);
-	modplay_playnote(3, &pattern_buffer[12]);
+	modplay_playnote_c(0, &pattern_buffer[0 ]);
+	modplay_playnote_c(1, &pattern_buffer[4 ]);
+	modplay_playnote_c(2, &pattern_buffer[8 ]);
+	modplay_playnote_c(3, &pattern_buffer[12]);
 
 	current_row++;
 	
@@ -278,8 +279,6 @@ void modplay_init(unsigned long address)
 	tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
 	speed = tempo / NUMRASTERS;
 	ticks = 1;
-
-	// while(1) { poke(0xd020, peek(0xd020)+1); }
 
 	// audioxbar_setcoefficient(i, 0xff);
 	for(i = 0; i < 256; i++)

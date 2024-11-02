@@ -7,8 +7,8 @@
 #include "iffl.h"
 #include "irqload.h"
 
-extern void irqvblank();
-extern void fastload_irq();
+extern void irq_fastload();
+extern void irq_main();
 
 void main()
 {
@@ -32,7 +32,7 @@ void main()
 	poke(0xd01a,0x00);										// disable IRQ raster interrupts because C65 uses raster interrupts in the ROM
 
 	VIC2.RC = 0x00;											// d012 = 0
-	IRQ_VECTORS.IRQ = (volatile uint16_t)&fastload_irq;		// set irq vector
+	IRQ_VECTORS.IRQ = (volatile uint16_t)&irq_fastload;		// set irq vector
 
 	poke(0xd01a,0x01);										// ACK!
 
@@ -123,7 +123,7 @@ void main()
 	poke(0xd01a,0x00);										// disable IRQ raster interrupts because C65 uses raster interrupts in the ROM
 
 	VIC2.RC = 0x40;											// d012 = 8
-	IRQ_VECTORS.IRQ = (volatile uint16_t)&irqvblank;
+	IRQ_VECTORS.IRQ = (volatile uint16_t)&irq_main;
 
 	poke(0xd01a,0x01);										// ACK!
 
