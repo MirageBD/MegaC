@@ -111,7 +111,6 @@ unsigned char	current_pattern_position	= 0;
 unsigned char	numpatternindices;
 unsigned char	song_loop_point; // unused
 unsigned short	top_addr;
-unsigned short	freq;
 
 unsigned short	sample_lengths				[MAX_INSTRUMENTS];
 unsigned short	sample_loopstart			[MAX_INSTRUMENTS];
@@ -122,9 +121,11 @@ unsigned char	sample_vol					[MAX_INSTRUMENTS];
 unsigned char	song_pattern_list			[128];
 unsigned char	pattern_buffer				[16];
 
-unsigned char  samplenum;
-unsigned short period;
-unsigned short effect;
+unsigned char   samplenum;
+unsigned short  period;
+unsigned short  effect;
+unsigned char   freqlo;
+unsigned char   freqhi;
 
 // ------------------------------------------------------------------------------------
 
@@ -141,8 +142,6 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 
 	if(period)
 	{
-		freq = 0xFFFFL / period; // result gets shifted by 2 bytes, see explanation at top
-
 		// Stop playback while loading new sample data
 		poke(0xd720 + ch_ofs, 0x00);
 
@@ -177,15 +176,36 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 			poke(0xd728 + ch_ofs, (((unsigned short)sample_addr[samplenum] + 2 * (sample_loopstart[samplenum] + sample_looplen[samplenum] - 1)) >> 8 ) & 0xff);
 		}
 
+		// calculate frequency
+		// freq = 0xFFFFL / period
+
+		poke(0xd770, 0xff        ); // MULTINA+0
+		poke(0xd771, 0xff        ); // MULTINA+1
+		poke(0xd772, 0           ); // MULTINA+2
+		poke(0xd773, 0           ); // MULTINA+3
+
+		poke(0xd774, period      ); // MULTINB+0
+		poke(0xd775, period >> 8 ); // MULTINB+1
+		poke(0xd776, 0           ); // MULTINB+2
+		poke(0xd777, 0           ); // MULTINB+3
+
+		poke(0xd020, peek(0xd020));
+		poke(0xd020, peek(0xd020));
+		poke(0xd020, peek(0xd020));
+		poke(0xd020, peek(0xd020));
+
+		freqlo = peek(0xd76c);
+		freqhi = peek(0xd76d);
+
 		poke(0xd770, sample_rate_divisor >> 0 ); // MULTINA+0
 		poke(0xd771, sample_rate_divisor >> 8 ); // MULTINA+1
 		poke(0xd772, sample_rate_divisor >> 16); // MULTINA+2
 		poke(0xd773, 0                        ); // MULTINA+3
 
-		poke(0xd774, freq     ); // MULTINB+0
-		poke(0xd775, freq >> 8); // MULTINB+1
-		poke(0xd776, 0        ); // MULTINB+2
-		poke(0xd777, 0        ); // MULTINB+3
+		poke(0xd774, freqlo); // MULTINB+0
+		poke(0xd775, freqhi); // MULTINB+1
+		poke(0xd776, 0     ); // MULTINB+2
+		poke(0xd777, 0     ); // MULTINB+3
 
 		// Pick results from output / 2^16
 		poke(0xd724 + ch_ofs, peek(0xd77a)); // MULTOUT+2
@@ -204,8 +224,7 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 		}
 	}
 
-	// LV TODO - disable audio channels that I'm not interested in while debugging,
-	// but keep their effects running?
+	// LV TODO - disable audio channels that I'm not interested in while debugging, but keep their effects running?
 
 	switch (effect & 0xf00)
 	{

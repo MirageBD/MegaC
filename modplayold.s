@@ -2185,22 +2185,6 @@ peppitoChanCalcFreq:
 			STA	valPepTmp1 + 1
 
 @cont1:
-
-			; CALCULATION
-			; valPepTmp0 = VAL_FAC_AMIGARATEL / valPepTmp1
-			; out = VAL_FAC_M65RATERTL * valPepTmp0
-
-			; out = VAL_FAC_M65RATERTL * (VAL_FAC_AMIGARATEL / valPepTmp1)
-
-			; VAL_FAC_M65RATERTL = 0001a395
-			; VAL_FAC_AMIGARATEL = 000dab6f
-
-			; MY calculation
-			; VAL_FAC_M65RATERTL * VAL_FAC_AMIGARATEL = $16678B749B -> #1468299
-
-			; PAULs calculation:
-			; sample_rate_divisor = #1469038 = $166A6E;
-
 			; Amiga frequency
 			LDA	#<VAL_FAC_AMIGARATEL
 			STA	$D770					; MULTINA+0
