@@ -4,6 +4,7 @@
 // C stuff that I want to test converting to asm. Makefile creates a file called exe/skeleton.s.
 // This failed miserably when I wanted to see what structs looked like in assembly.
 
+/*
 static struct Foo x;
 
 static struct Foo
@@ -18,3 +19,4 @@ void bar()
     x.b = 2;
     printf("%d", x.a);
 }
+*/

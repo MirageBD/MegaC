@@ -3,19 +3,7 @@
 				.extern ticks
 				.extern speed
 
-/*
-				.extern foo
-
-FOO_A			.equ 0
-FOO_B			.equ 1
-
-				.public asm_testfoo
-asm_testfoo:	lda #0xba
-				sta foo+FOO_A
-				lda #0xbe
-				sta foo+FOO_B
-				rts
-*/
+structtest:		.space 2
 
 ; ------------------------------------------------------------------------------------
 

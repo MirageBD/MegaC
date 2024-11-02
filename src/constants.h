@@ -3,9 +3,7 @@
 
 #define SCREEN				0xe000
 #define COLOR_RAM_OFFSET	0x0800
-
 #define RRBSCREENWIDTH		80
-
 #define PALETTE             0xc000
 
 #endif

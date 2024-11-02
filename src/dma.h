@@ -1,12 +1,7 @@
 #ifndef __DMA_H
 #define __DMA_H
 
-typedef struct _dma_job                 dma_job_t;
-typedef struct _dma_job_far_source      dma_job_far_source_t;
-typedef struct _dma_job_far_destination dma_job_far_destination_t;
-typedef struct _dma_job_far_addresses   dma_job_far_addresses_t;
-
-struct _dma_job
+typedef struct _dma_job
 {
 	char			type;
 	char			end_options;
@@ -17,9 +12,9 @@ struct _dma_job
 	unsigned short	destination;
 	char			destination_bank;
 	unsigned short	modulo;
-};
+} _dma_job;
 
-struct _dma_job_far_source
+typedef struct _dma_job_far_source
 {
 	char			type;
 	char			sbank_token;
@@ -32,9 +27,9 @@ struct _dma_job_far_source
 	unsigned short	destination;
 	char			destination_bank;
 	unsigned short	modulo;
-};
+} _dma_job_far_source;
 
-struct _dma_job_far_destination
+typedef struct _dma_job_far_destination
 {
 	char			type;
 	char			dbank_token;
@@ -47,9 +42,9 @@ struct _dma_job_far_destination
 	unsigned short	destination;
 	char			destination_bank;
 	unsigned short	modulo;
-};
+} _dma_job_far_destination;
 
-struct _dma_job_far_addresses
+typedef struct _dma_job_far_addresses
 {
 	char			type;
 	char			sbank_token;
@@ -64,7 +59,7 @@ struct _dma_job_far_addresses
 	unsigned short	destination;
 	char			destination_bank;
 	unsigned short	modulo;
-};
+} _dma_job_far_addresses;
 
 extern void run_dma_job(__far char *ptr);
 extern void dma_lcopy(long source_address, long destination_address, unsigned int count);

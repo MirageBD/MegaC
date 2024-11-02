@@ -1,8 +1,7 @@
 #include <calypsi/intrinsics6502.h>
 
-#include "main.h"
-#include "registers.h"
 #include "macros.h"
+#include "registers.h"
 #include "constants.h"
 #include "modplay.h"
 #include "iffl.h"
@@ -11,33 +10,15 @@
 extern void irqvblank();
 extern void fastload_irq();
 
-/*
-typedef struct Foo
+void main()
 {
-	uint8_t a;
-	uint8_t b;
-} Foo;
-
-Foo foo;
-*/
-
-int main()
-{
-
-	// ------------------------------------------------------------------------------------
-
-	__disable_interrupts();									// sei
+	SEI
 
 	CPU.PORT = 0b00110101;									// 0x35 = I/O area visible at $D000-$DFFF, RAM visible at $A000-$BFFF and $E000-$FFFF.
 
 	VIC4.HOTREG = 0;										// disable hot registers
 
-	__asm(" lda #0x00\n"									// unmap any mappings
-		  " tax\n"
-		  " tay\n"
-		  " taz\n"
-		  " map\n"
-		  " nop");
+	UNMAP_ALL												// unmap any mappings
 
 	CPU.PORTDDR = 65;										// enable 40Hz
 
@@ -55,7 +36,7 @@ int main()
 
 	poke(0xd01a,0x01);										// ACK!
 
-	__enable_interrupts();									// cli
+	CLI
 
 	// ------------------------------------------------------------------------------------
 
@@ -69,7 +50,7 @@ int main()
 
 	// ------------------------------------------------------------------------------------
 
-	__disable_interrupts();									// sei
+	SEI
 
 	CPU.PORT = 0b00110101;									// 0x35 = I/O area visible at $D000-$DFFF, RAM visible at $A000-$BFFF and $E000-$FFFF.
 	
@@ -123,8 +104,6 @@ int main()
 	AUDIO_DMA.AUDEN = 0b10000000;
 	AUDIO_DMA.DBGSAT = 0b00000000;
 
-	// setborder(5);
-
 	// Stop all DMA audio first
 	AUDIO_DMA.CHANNELS[0].CONTROL = 0;
 	AUDIO_DMA.CHANNELS[1].CONTROL = 0;
@@ -144,12 +123,11 @@ int main()
 	poke(0xd01a,0x00);										// disable IRQ raster interrupts because C65 uses raster interrupts in the ROM
 
 	VIC2.RC = 0x40;											// d012 = 8
-	// IRQ_VECTORS.IRQ = (volatile uint16_t)&irqcia;
 	IRQ_VECTORS.IRQ = (volatile uint16_t)&irqvblank;
 
 	poke(0xd01a,0x01);										// ACK!
 
-	__enable_interrupts();									// cli
+	CLI
 
 	// ------------------------------------------------------------------------------------
 
@@ -161,6 +139,4 @@ int main()
 			" sta 0xd020\n"
 		);
 	}
-
-	return 0;
 }

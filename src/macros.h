@@ -10,4 +10,9 @@
 
 typedef void            (*PROC_PTR)(void);
 
+#define UNMAP_ALL       __asm(" lda #0x00\n" " tax\n" " tay\n" " taz\n" " map\n" " nop");
+
+#define SEI             __asm(" sei");
+#define CLI             __asm(" cli");
+
 #endif

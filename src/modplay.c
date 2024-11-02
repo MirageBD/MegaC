@@ -191,7 +191,7 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 void modplay_play()
 {
 	// play pattern row
-	dma_lcopy(load_addr + song_offset + (current_pattern << 10) + (current_row << 4), pattern_buffer, 16);
+	dma_lcopy(load_addr + song_offset + (current_pattern << 10) + (current_row << 4), (unsigned long)pattern_buffer, 16);
 
 	modplay_playnote(0, &pattern_buffer[0 ]);
 	modplay_playnote(1, &pattern_buffer[4 ]);
@@ -219,7 +219,7 @@ void modplay_init(unsigned long address)
 
 	load_addr = address;
 
-	dma_lcopy(load_addr + 1080, mod_tmpbuf, 4);								// Check if 15 or 31 instrument mode (M.K.)
+	dma_lcopy(load_addr + 1080, (unsigned long)mod_tmpbuf, 4);						// Check if 15 or 31 instrument mode (M.K.)
 
 	mod_tmpbuf[4] = 0;
 	numinstruments = 15;
@@ -233,7 +233,7 @@ void modplay_init(unsigned long address)
 		if(a == 4)
 		{
 			numinstruments = 31;
-			song_offset = 1084;												// case for 31 instruments
+			song_offset = 1084;														// case for 31 instruments
 		}
 	}
 
@@ -244,19 +244,19 @@ void modplay_init(unsigned long address)
 		// 1 byte  - volume for sample ($00-$40)
 		// 2 bytes - repeat point in words
 		// 2 bytes - repeat length in words
-		dma_lcopy(load_addr + 0x14 + i * 30 + 22, mod_tmpbuf, 8);			// Get instrument data for plucking
+		dma_lcopy(load_addr + 0x14 + i * 30 + 22, (unsigned long)mod_tmpbuf, 8);	// Get instrument data for plucking
 		sample_lengths   [i] = mod_tmpbuf[1] + (mod_tmpbuf[0] << 8);
-		sample_lengths   [i] <<= 1;											// Redenominate instrument length into bytes
+		sample_lengths   [i] <<= 1;													// Redenominate instrument length into bytes
 		sample_finetune  [i] = mod_tmpbuf[2];
-		sample_vol       [i] = mod_tmpbuf[3];								// Instrument volume
-		sample_loopstart [i] = mod_tmpbuf[5] + (mod_tmpbuf[4] << 8);		// Repeat start point and end point
+		sample_vol       [i] = mod_tmpbuf[3];										// Instrument volume
+		sample_loopstart [i] = mod_tmpbuf[5] + (mod_tmpbuf[4] << 8);				// Repeat start point and end point
 		sample_looplen   [i] = mod_tmpbuf[7] + (mod_tmpbuf[6] << 8);
 	}
 
 	numpatternindices = lpeek(load_addr + 20 + numinstruments*30 + 0);
 	song_loop_point = lpeek(load_addr + 20 + numinstruments*30 + 1);
 
-	dma_lcopy(load_addr + 20 + numinstruments*30 + 2, song_pattern_list, 128);
+	dma_lcopy(load_addr + 20 + numinstruments*30 + 2, (unsigned long)song_pattern_list, 128);
 	for(i = 0; i < numpatternindices; i++)
 	{
 		if(song_pattern_list[i] > max_pattern)
