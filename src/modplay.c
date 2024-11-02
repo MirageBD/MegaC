@@ -1,13 +1,10 @@
 #include <calypsi/intrinsics6502.h>
-
 #include <stdint.h>
 #include "macros.h"
 #include "registers.h"
 #include "dma.h"
 
 #define MAX_INSTRUMENTS						32
-#define CPU_FREQUENCY						40500000
-#define AMIGA_PAULA_CLOCK					(70937892 / 20) // CPU clock / 20
 #define NUMRASTERS							(unsigned long)(2 * 312)
 #define RASTERS_PER_SECOND					(unsigned long)(NUMRASTERS * 50)	// PAL 0-311, NTSC 0-262
 #define RASTERS_PER_MINUTE					(unsigned long)(RASTERS_PER_SECOND * 60)
@@ -36,7 +33,7 @@ unsigned long	sample_data_start			= 0;
 unsigned char	max_pattern					= 0;
 unsigned char	current_pattern_index		= 0;
 unsigned char	current_pattern				= 0;
-unsigned char	current_pattern_position	= 0;
+unsigned char	current_row					= 0;
 unsigned char	numpatternindices;
 unsigned char	song_loop_point; // unused
 unsigned short	top_addr;
@@ -194,23 +191,23 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 void modplay_play()
 {
 	// play pattern row
-	dma_lcopy(load_addr + song_offset + (current_pattern << 10) + (current_pattern_position << 4), pattern_buffer, 16);
+	dma_lcopy(load_addr + song_offset + (current_pattern << 10) + (current_row << 4), pattern_buffer, 16);
 
 	modplay_playnote(0, &pattern_buffer[0 ]);
 	modplay_playnote(1, &pattern_buffer[4 ]);
 	modplay_playnote(2, &pattern_buffer[8 ]);
 	modplay_playnote(3, &pattern_buffer[12]);
 
-	current_pattern_position++;
+	current_row++;
 	
-	if(current_pattern_position > 0x3f)
+	if(current_row > 0x3f)
 	{
-		current_pattern_position = 0x00;
+		current_row = 0x00;
 		current_pattern_index++;
 		if(current_pattern_index == numpatternindices)
 			current_pattern_index = 0;
 		current_pattern = song_pattern_list[current_pattern_index];
-		current_pattern_position = 0;
+		current_row = 0;
 	}
 }
 
@@ -276,7 +273,7 @@ void modplay_init(unsigned long address)
 
 	current_pattern_index = 0;
 	current_pattern = song_pattern_list[0];
-	current_pattern_position = 0;
+	current_row = 0;
 
 	tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
 	speed = tempo / NUMRASTERS;

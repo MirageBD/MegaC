@@ -7,33 +7,17 @@
 
 // ---------------------------------------------------------------------------
 
-typedef struct _CPU					_CPU_t;
-typedef struct _VIC2				_VIC2_t;
-typedef struct _VIC3				_VIC3_t;
-typedef struct _VIC4				_VIC4_t;
-typedef struct _FDC					_FDC_t;
-typedef struct _SID					_SID_t;
-typedef struct _SID_VOICE			_SID_VOICE_t;
-typedef struct _KEYSCAN				_KEYSCAN_t;
-typedef struct _DMA					_DMA_t;
-typedef struct _MATH				_MATH_t;
-typedef struct _AUDIO_DMA			_AUDIO_DMA_t;
-typedef struct _AUDIO_CHANNEL		_AUDIO_CHANNEL_t;
-typedef struct _CIA1				_CIA1_t;
-typedef struct _CIA2				_CIA2_t;
-typedef struct _IRQ_VECTORS			_IRQ_VECTORS_t;
-
 // ---------------------------------------------------------------------------
 
-struct _CPU							// 0x00
+typedef struct _CPU					// 0x00
 {
 	uint8_t		PORTDDR;			// 0x00
 	uint8_t		PORT;				// 0x01
-};
+} _CPU;
 
 // ---------------------------------------------------------------------------
 
-struct _VIC2						// 0xd000
+typedef struct _VIC2				// 0xd000
 {
 	uint8_t		S0X;				// 0xd000
 	uint8_t		S0Y;				// 0xd001
@@ -114,11 +98,11 @@ struct _VIC2						// 0xd000
 	uint8_t		SPR7COL;			// 0xd02e
 	uint8_t		_NA1;				// 0xd02f
 	uint8_t		C128_FAST;			// 0xd030
-};
+} _VIC2;
 
 // ---------------------------------------------------------------------------
 
-struct _VIC3						// 0xd02f
+typedef struct _VIC3				// 0xd02f
 {
 	uint8_t		KEY; 				// 0xd02f
 	union							// 0xd030
@@ -216,12 +200,11 @@ struct _VIC3						// 0xd02f
 	uint8_t		PALRED   [0x100];	// 0xd100
 	uint8_t		PALGREEN [0x100];	// 0xd200
 	uint8_t		PALBLUE  [0x100];	// 0xd300
-	
-};
+} _VIC3;
 
 // ---------------------------------------------------------------------------
 
-struct _VIC4						// 0xd048
+typedef struct _VIC4				// 0xd048
 {
 	uint8_t		TBDRPOSLSB;			// 0xd048
 	union							// 0xd049
@@ -358,11 +341,11 @@ struct _VIC4						// 0xd048
 	uint8_t		PALRED   [0x100];	// 0xd100
 	uint8_t		PALGREEN [0x100];	// 0xd200
 	uint8_t		PALBLUE  [0x100];	// 0xd300
-};
+} _VIC4;
 
 // ---------------------------------------------------------------------------
 
-struct _FDC							// 0xd080
+typedef struct _FDC					// 0xd080
 {
 	union							// 0xd080
 	{
@@ -413,39 +396,39 @@ struct _FDC							// 0xd080
 	uint8_t		CLOCK;				// 0xd088
 	uint8_t		STEP;				// 0xd089
 	uint8_t		PCODE;				// 0xd08a
-};
+} _FDC;
 
 // ---------------------------------------------------------------------------
 
-struct _SID_VOICE
+typedef struct _SID_VOICE
 {
 	uint16_t	FREQUENCY;
 	uint16_t	PULSE_WIDTH;
 	uint8_t		CONTROL;
 	uint8_t		ATTACKDECAY;
 	uint8_t		SUSTAINRELEASE;
-};
+} _SID_VOICE;
 
-struct _SID							// SID1=0xd400, SID2=0xd420, SID3=0xd440, SID4=0xd460
+typedef struct _SID					// SID1=0xd400, SID2=0xd420, SID3=0xd440, SID4=0xd460
 {
-	_SID_VOICE_t VOICE[3];
+	_SID_VOICE	VOICE[3];
 	uint8_t		CUTOFF_LSB;
 	uint8_t		CUTOFF_MSB;
 	uint8_t		RESONANCE_ROUTING;
 	uint8_t		VOLUME_FTYPE;
-};
+} _SID;
 
 // ---------------------------------------------------------------------------
 
-struct _KEYSCAN						// 0xd613
+typedef struct _KEYSCAN				// 0xd613
 {
 	uint8_t		CRTACSCNT;			// 0xd613
 	uint8_t		MATRIXPEEK;			// 0xd614
-};
+} _KEYSCAN;
 
 // ---------------------------------------------------------------------------
 
-struct _DMA							// 0xd700
+typedef struct _DMA					// 0xd700
 {
 	uint8_t		ADDRLSBTRIG;		// 0xd700
 	uint8_t		ADDRMSB;			// 0xd701
@@ -456,11 +439,11 @@ struct _DMA							// 0xd700
 	uint8_t		ETRIGMAPD;			// 0xd706
 	uint8_t		_NA[7];				// 0xd707
 	uint8_t		ADDRLSB;			// 0xd70e
-};
+} _DMA;
 
 // ---------------------------------------------------------------------------
 
-struct _MATH						// 0xd70f
+typedef struct _MATH				// 0xd70f
 {
 	union							// 0xd70f
 	{
@@ -489,11 +472,11 @@ struct _MATH						// 0xd70f
 	uint8_t		MULTOUT1;			// 0xd779
 	uint8_t		MULTOUT2;			// 0xd77a
 	uint8_t		MULTOUT3;			// 0xd77b
-};
+} _MATH;
 
 // ---------------------------------------------------------------------------
 
-struct _AUDIO_CHANNEL
+typedef struct _AUDIO_CHANNEL		// 0xd720
 {
 	uint8_t		CONTROL;			// 0xd720
 	uint16_t	BADDR;				// 0xd721
@@ -506,13 +489,13 @@ struct _AUDIO_CHANNEL
 	uint8_t		CURADDRMB;			// 0xd72c
 	uint16_t	TMRADDR;			// 0xd72d
 	uint8_t		TMRADDRMB;			// 0xd72f
-};
+} _AUDIO_CHANNEL;
 
-struct _AUDIO_DMA					// 0xd711
+typedef struct _AUDIO_DMA			// 0xd711
 {
-	uint8_t		AUDEN; // AUDEN BLKD AUDWRBLK NOMIX – AUDBLKTO		0xd711
-	uint8_t		DBGSAT; // DBGLFTSAT DBGRGTSAT DBGPANLFTSAT DBGPANRGTSAT – - CHANSWAP SATURATE		0xd712
-	uint8_t		IRQCH0FLG; // IRQCH1FLG IRQCH2FLG IRQCH3FLG IRQCH0ENA IRQCH1ENA IRQCH2ENA IRQCH3ENA			0xd713
+	uint8_t		AUDEN;				// AUDEN BLKD AUDWRBLK NOMIX – AUDBLKTO											0xd711
+	uint8_t		DBGSAT;				// DBGLFTSAT DBGRGTSAT DBGPANLFTSAT DBGPANRGTSAT – - CHANSWAP SATURATE			0xd712
+	uint8_t		IRQCH0FLG;			// IRQCH1FLG IRQCH2FLG IRQCH3FLG IRQCH0ENA IRQCH1ENA IRQCH2ENA IRQCH3ENA		0xd713
 	uint8_t		IRQCH0OFFS;			// 0xd714
 	uint8_t		IRQCH1OFFS;			// 0xd715
 	uint8_t		IRQCH2OFFS;			// 0xd716
@@ -523,12 +506,12 @@ struct _AUDIO_DMA					// 0xd711
 	uint8_t		CH2LVOL;			// 0xd71e
 	uint8_t		CH3LVOL;			// 0xd71f
 	
-	_AUDIO_CHANNEL_t CHANNELS[4];	// 0xd720, 0xd730, 0xd740, 0xd750
-};
+	_AUDIO_CHANNEL CHANNELS[4];		// 0xd720, 0xd730, 0xd740, 0xd750
+} _AUDIO_DMA;
 
 // ---------------------------------------------------------------------------
 
-struct _CIA1						// 0xdc00
+typedef struct _CIA1				// 0xdc00
 {
 	uint8_t		PORTA;				// 0xdc00
 	uint8_t		PORTB;				// 0xdc01
@@ -560,11 +543,11 @@ struct _CIA1						// 0xdc00
 	uint8_t		ALRMSEC;			// 0xdc1d
 	uint8_t		ALRMMIN;			// 0xdc1e
 	uint8_t		ALRMHOUR;			// 0xdc1f
-};
+} _CIA1;
 
 // ---------------------------------------------------------------------------
 
-struct _CIA2						// 0xdd00
+typedef struct _CIA2				// 0xdd00
 {
 	uint8_t		PORTA;				// 0xdd00
 	uint8_t		PORTB;				// 0xdd01
@@ -596,34 +579,34 @@ struct _CIA2						// 0xdd00
 	uint8_t		ALRMSEC;			// 0xdd1d
 	uint8_t		ALRMMIN;			// 0xdd1e
 	uint8_t		ALRMHOUR;			// 0xdd1f
-};
+} _CIA2;
 
 // ---------------------------------------------------------------------------
 
-struct _IRQ_VECTORS					// 0xfffa
+typedef struct _IRQ_VECTORS			// 0xfffa
 {
 	uint16_t	NMI;				// 0xfffa
 	uint16_t	COLDSTART;			// 0xfffc
 	uint16_t	IRQ;				// 0xfffe
-};
+} _IRQ_VECTORS;
 
 // ---------------------------------------------------------------------------
 
-#define CPU			(* (volatile _CPU_t *)			  0x00)
-#define VIC2		(* (volatile _VIC2_t *)			0xd000)
-#define VIC3		(* (volatile _VIC3_t *)			0xd02f)
-#define VIC4		(* (volatile _VIC4_t *)			0xd048)
-#define FDC			(* (volatile _FDC_t *)			0xd080)
-#define SID1		(* (volatile _SID_t *)			0xd400)
-#define SID2		(* (volatile _SID_t *)			0xd420)
-#define SID3		(* (volatile _SID_t *)			0xd440)
-#define SID4		(* (volatile _SID_t *)			0xd460)
-#define KEYSCAN		(* (volatile _KEYSCAN_t *)		0xd613)
-#define DMA			(* (volatile _DMA_t *)			0xd700)
-#define MATH		(* (volatile _MATH_t *)			0xd70f)
-#define AUDIO_DMA	(* (volatile _AUDIO_DMA_t *)	0xd711)
-#define CIA1		(* (volatile _CIA1_t *)			0xdc00)
-#define CIA2		(* (volatile _CIA2_t *)			0xdd00)
-#define IRQ_VECTORS	(* (volatile _IRQ_VECTORS_t *)	0xfffa)
+#define CPU			(*(volatile _CPU *)			  0x00)
+#define VIC2		(*(volatile _VIC2 *)		0xd000)
+#define VIC3		(*(volatile _VIC3 *)		0xd02f)
+#define VIC4		(*(volatile _VIC4 *)		0xd048)
+#define FDC			(*(volatile _FDC *)			0xd080)
+#define SID1		(*(volatile _SID *)			0xd400)
+#define SID2		(*(volatile _SID *)			0xd420)
+#define SID3		(*(volatile _SID *)			0xd440)
+#define SID4		(*(volatile _SID *)			0xd460)
+#define KEYSCAN		(*(volatile _KEYSCAN *)		0xd613)
+#define DMA			(*(volatile _DMA *)			0xd700)
+#define MATH		(*(volatile _MATH *)		0xd70f)
+#define AUDIO_DMA	(*(volatile _AUDIO_DMA *)	0xd711)
+#define CIA1		(*(volatile _CIA1 *)		0xdc00)
+#define CIA2		(*(volatile _CIA2 *)		0xdd00)
+#define IRQ_VECTORS	(*(volatile _IRQ_VECTORS *)	0xfffa)
 
 #endif
