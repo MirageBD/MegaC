@@ -1727,7 +1727,7 @@ peppitoChanTrigEffect:
 			CMP	#$20
 			BCS	@spdch0
 
-			STA	valPepSped
+			STA	valPepSped	; Fxx 00-1F ticks per row. 6 being the default
 			STA	cntPepTick
 
 			JMP	@exit
@@ -2184,23 +2184,40 @@ peppitoChanCalcFreq:
 			LDA	#>6848
 			STA	valPepTmp1 + 1
 
-@cont1:		; Amiga frequency
-			LDA	#<VAL_FAC_AMIGARATEL
-			STA	$D770
-			LDA	#>VAL_FAC_AMIGARATEL
-			STA	$D771
-			LDA	#<VAL_FAC_AMIGARATEH
-			STA	$D772
-			LDA	#>VAL_FAC_AMIGARATEH
-			STA	$D773
+@cont1:
 
-			LDA	valPepTmp1
-			STA	$D774
-			LDA	valPepTmp1 + 1
-			STA	$D775
+			; CALCULATION
+			; valPepTmp0 = VAL_FAC_AMIGARATEL / valPepTmp1
+			; out = VAL_FAC_M65RATERTL * valPepTmp0
+
+			; out = VAL_FAC_M65RATERTL * (VAL_FAC_AMIGARATEL / valPepTmp1)
+
+			; VAL_FAC_M65RATERTL = 0001a395
+			; VAL_FAC_AMIGARATEL = 000dab6f
+
+			; MY calculation
+			; VAL_FAC_M65RATERTL * VAL_FAC_AMIGARATEL = $16678B749B -> #1468299
+
+			; PAULs calculation:
+			; sample_rate_divisor = #1469038 = $166A6E;
+
+			; Amiga frequency
+			LDA	#<VAL_FAC_AMIGARATEL
+			STA	$D770					; MULTINA+0
+			LDA	#>VAL_FAC_AMIGARATEL
+			STA	$D771					; MULTINA+1
+			LDA	#<VAL_FAC_AMIGARATEH
+			STA	$D772					; MULTINA+2
+			LDA	#>VAL_FAC_AMIGARATEH
+			STA	$D773					; MULTINA+3
+
+			LDA	valPepTmp1+0
+			STA	$D774					; MULTINB+0
+			LDA	valPepTmp1+1
+			STA	$D775					; MULTINB+1
 			LDA	#$00
-			STA	$D776
-			STA	$D777
+			STA	$D776					; MULTINB+2
+			STA	$D777					; MULTINB+3
 		
 			LDA	$D020
 			STA	$D020
@@ -2211,33 +2228,33 @@ peppitoChanCalcFreq:
 			LDA	$D020
 			STA	$D020
 
-			LDA	$D76C
-			STA	valPepTmp0
-			LDA	$D76D
-			STA	valPepTmp0 + 1
-			LDA	$D76E
-			STA	valPepTmp0 + 2
-			LDA	$D76F
-			STA	valPepTmp0 + 3
+			LDA	$D76C					; DIVOUT+0
+			STA	valPepTmp0+0
+			LDA	$D76D					; DIVOUT+1
+			STA	valPepTmp0+1
+			LDA	$D76E					; DIVOUT+2
+			STA	valPepTmp0+2
+			LDA	$D76F					; DIVOUT+3
+			STA	valPepTmp0+3
 
 			; M65 frequency
 			LDA	#<VAL_FAC_M65RATERTL
-			STA	$D770
+			STA	$D770					; MULTINA+0
 			LDA	#>VAL_FAC_M65RATERTL
-			STA	$D771
+			STA	$D771					; MULTINA+1
 			LDA	#<VAL_FAC_M65RATERTH
-			STA	$D772
+			STA	$D772					; MULTINA+2
 			LDA	#>VAL_FAC_M65RATERTH
-			STA	$D773
+			STA	$D773					; MULTINA+3
 
-			LDA	valPepTmp0
-			STA	$D774
-			LDA	valPepTmp0 + 1
-			STA	$D775
-			LDA	valPepTmp0 + 2
-			STA	$D776
-			LDA	valPepTmp0 + 3
-			STA	$D777
+			LDA	valPepTmp0+0
+			STA	$D774					; MULTINB+0
+			LDA	valPepTmp0+1
+			STA	$D775					; MULTINB+1
+			LDA	valPepTmp0+2
+			STA	$D776					; MULTINB+2
+			LDA	valPepTmp0+3
+			STA	$D777					; MULTINB+3
 
 			RTS
 

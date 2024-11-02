@@ -1,72 +1,21 @@
-			.extern modplay_play
-			.extern modplay_increment
-			.extern tempo
+				.extern modplay_play
+				.extern tempo
+				.extern ticks
+				.extern speed
 
-; ------------------------------------------------------------------------------------
+/*
+				.extern foo
 
-			.public setborder
-setborder:	sta 0xd020
-			rts
+FOO_A			.equ 0
+FOO_B			.equ 1
 
-; ------------------------------------------------------------------------------------
-
-startraster:		.byte 0
-playtimetaken:		.byte 0
-compensatedtempo:	.byte 0
-
-			.public irqcia
-irqcia:
-			php
-			pha
-			phx
-			phy
-			phz
-
-playloop:
-			lda 0xd012
-			sta startraster
-
-			lda #0x01
-			sta 0xd020
-
-			jsr modplay_play
-
-			lda #0x00
-			sta 0xd020
-
-			sec
-			lda 0xd012
-			sbc startraster
-			sta playtimetaken
-
-			sec
-			lda tempo+0
-			sbc playtimetaken
-			sta compensatedtempo+0
-			lda tempo+1
-			sbc #0x00
-			sta compensatedtempo+1
-
-			ldy compensatedtempo+1
-			ldx compensatedtempo+0
-waitx:		lda 0xd012
-waitr:		cmp 0xd012
-			beq waitr
-			;inc 0xd020
-			dex
-			bne waitx
-			dey
-			bpl waitx
-
-			jmp playloop
-
-			plz
-			ply
-			plx
-			pla
-			plp
-			asl 0xd019
-			rti
+				.public asm_testfoo
+asm_testfoo:	lda #0xba
+				sta foo+FOO_A
+				lda #0xbe
+				sta foo+FOO_B
+				rts
+*/
 
 ; ------------------------------------------------------------------------------------
 
@@ -78,35 +27,34 @@ irqvblank:
 			phy
 			phz
 
-			sec
-			lda tempodec+0
-			sbc #0x70						; decrease with <(2 * 312)
-			sta tempodec+0
-			lda tempodec+1
-			sbc #0x02						; decrease with >(2 * 312)
-			sta tempodec+1
-			bcs next$
+			; save state
+
+			dec ticks
+			beq fetchnextrow
+
+			; perform effects for this tick
+			bra exit
+
+fetchnextrow:
+
+			lda speed
+			sta ticks
 
 			lda #0x01
 			sta 0xd020
 			jsr modplay_play
-			lda tempo+0
-			sta tempodec+0
-			lda tempo+1
-			sta tempodec+1
 			lda #0x00
 			sta 0xd020
 
-next$:		plz
+exit:		; restore state
+
+			plz
 			ply
 			plx
 			pla
 			plp
 			asl 0xd019
 			rti
-
-frametimer		.byte 0
-tempodec		.word 0x0ea0
 
 ; ------------------------------------------------------------------------------------
 
@@ -127,3 +75,4 @@ fastload_irq:
 			rti
 
 ; ------------------------------------------------------------------------------------
+

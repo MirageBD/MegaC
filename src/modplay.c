@@ -95,11 +95,14 @@ unsigned char	mod_tmpbuf[23];
   But our multiplier is only 23x18 bits so N = 2^16 / PERIOD should fit, and still allow us to just shift the result right by 2 bytes
 */
 
-long			sample_rate_divisor			= 1469038;
+// long			sample_rate_divisor			= 1469038; // PAULs original calculation
+long			sample_rate_divisor			= 1468299; // MY calculation
 
-unsigned char   beatsperminute				= 125;
+unsigned char   beats_per_minute			= 125;
 unsigned short	song_offset					= 0;
 unsigned short	tempo						= 0;
+unsigned char	ticks						= 0;
+unsigned char	speed						= 0; // speed gets fed into ticks. ticks decreases every frame until 0, which triggers a row increase.
 unsigned long	sample_data_start			= 0;
 unsigned char	max_pattern					= 0;
 unsigned char	current_pattern_index		= 0;
@@ -117,7 +120,6 @@ unsigned char	sample_finetune				[MAX_INSTRUMENTS];
 unsigned long	sample_addr					[MAX_INSTRUMENTS];
 unsigned char	sample_vol					[MAX_INSTRUMENTS];
 unsigned char	song_pattern_list			[128];
-unsigned char	last_instruments			[4] = { 0, 0, 0, 0 };
 unsigned char	pattern_buffer				[16];
 
 unsigned char  samplenum;
@@ -128,18 +130,9 @@ unsigned short effect;
 
 void modplay_playnote(unsigned char channel, unsigned char *note)
 {
-	//	if (channel > 3)
-	//		return;
-
 	samplenum  = note[0]  & 0xf0;
 	samplenum |= note[2] >> 4;
-
-	if(!samplenum)
-		samplenum = last_instruments[channel];
-	else
-		samplenum--;
-
-	last_instruments[channel] = samplenum;
+	samplenum--;
 
 	period = ((note[0] & 0xf) << 8) + note[1];
 	effect = ((note[2] & 0xf) << 8) + note[3];
@@ -167,10 +160,9 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 		poke(0xd728 + ch_ofs, (top_addr >> 8) & 0xff);
 
 		// Volume
-		poke(0xd729 + ch_ofs, sample_vol[samplenum] >> 2);
-
+		poke(0xd729 + ch_ofs, sample_vol[samplenum]);
 		// Mirror channel quietly on other side for nicer stereo imaging
-		poke(0xd71c + channel, sample_vol[samplenum] >> 4);
+		poke(0xd71c + channel, sample_vol[samplenum]);
 
 		// XXX - We should set base addr and top addr to the looping range, if the sample has one.
 		if (sample_loopstart[samplenum])
@@ -185,18 +177,19 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 			poke(0xd728 + ch_ofs, (((unsigned short)sample_addr[samplenum] + 2 * (sample_loopstart[samplenum] + sample_looplen[samplenum] - 1)) >> 8 ) & 0xff);
 		}
 
-		poke(0xd770, sample_rate_divisor      );
-		poke(0xd771, sample_rate_divisor >> 8 );
-		poke(0xd772, sample_rate_divisor >> 16);
-		poke(0xd773, 0x00                     );
+		poke(0xd770, sample_rate_divisor >> 0 ); // MULTINA+0
+		poke(0xd771, sample_rate_divisor >> 8 ); // MULTINA+1
+		poke(0xd772, sample_rate_divisor >> 16); // MULTINA+2
+		poke(0xd773, 0                        ); // MULTINA+3
 
-		poke(0xd774, freq     );
-		poke(0xd775, freq >> 8);
-		poke(0xd776, 0        );
+		poke(0xd774, freq     ); // MULTINB+0
+		poke(0xd775, freq >> 8); // MULTINB+1
+		poke(0xd776, 0        ); // MULTINB+2
+		poke(0xd777, 0        ); // MULTINB+3
 
 		// Pick results from output / 2^16
-		poke(0xd724 + ch_ofs, peek(0xd77a));
-		poke(0xd725 + ch_ofs, peek(0xd77b));
+		poke(0xd724 + ch_ofs, peek(0xd77a)); // MULTOUT+2
+		poke(0xd725 + ch_ofs, peek(0xd77b)); // MULTOUT+3
 		poke(0xd726 + ch_ofs, 0);
 
 		if (sample_loopstart[samplenum])
@@ -219,22 +212,27 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 		case 0xf00: // Speed!!!
 			if ((effect & 0x0ff) < 0x20) // speed (00-1F) / tempo (20-FF)
 			{
-				tempo = RASTERS_PER_MINUTE / beatsperminute / ROWS_PER_BEAT;
+				tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
 				tempo *= 6 / (effect & 0x1f);
+				speed = tempo / NUMRASTERS;
+				ticks = speed;
 			}
 			else // effect & 0x0ff >= 0x20
 			{
-				beatsperminute = (effect & 0xff);
-				tempo = RASTERS_PER_MINUTE / beatsperminute / ROWS_PER_BEAT;
+				beats_per_minute = (effect & 0xff);
+				tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
+				speed = tempo / NUMRASTERS;
+				ticks = speed;
 			}
 			break;
 		case 0xc00: // Channel volume
-			poke(0xd729 + ch_ofs, effect & 0xff);
+			poke(0xd729 + ch_ofs, effect & 0xff); // CH0VOLUME
+			poke(0xd71c + channel, effect & 0xff); // CH0RVOL
 			break;
 	}
 
-	// Enable audio dma, enable bypass of audio mixer, signed samples
-	poke(0xd711, 0x80);
+	// Enable audio dma, enable bypass of audio mixer
+	poke(0xd711, 0b10010000);
 }
 
 void modplay_play()
@@ -324,7 +322,9 @@ void modplay_init(unsigned long address)
 	current_pattern = song_pattern_list[0];
 	current_pattern_position = 0;
 
-	tempo = RASTERS_PER_MINUTE / beatsperminute / ROWS_PER_BEAT;;
+	tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
+	speed = tempo / NUMRASTERS;
+	ticks = 1;
 
 	// while(1) { poke(0xd020, peek(0xd020)+1); }
 
