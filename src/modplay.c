@@ -5,66 +5,6 @@
 #include "registers.h"
 #include "dma.h"
 
-/*
-	WE'RE IN 640x400 MODE, SO WE'VE GOT (2*312) RASTERLINES!!!
-
-	for an 125 BPM song (125 being the highest), _my_ tempo is $0ea0 raster lines, which is (3744/(2*312)) = 6 screens
-	but the ticks per row can be anything from 1 to 31 (6 being the default... DOES 6 TICKS PER ROW CORRESPOND WITH THE 6 SCREENS CALCULATED ABOVE?!?)
-*/
-
-/*
-	For amiga:
-
-	CPU clock =                  7093.7892 kHz (7 Mhz)
-	CIA clock = CPU clock / 10 = 709.37892 kHz
-
-	50Hz timer = CPU Clock / 500 = 14187.5784
-	tempo num = 50Hz timer * 125bpm = 1773447
-
-	because the timer is only a word ($ffff) the minumum value is 28 (1773447/27 = $10093 is too big, 1773447/28 = $0f769, which fits).
-
-	tempo calculation goes like this for a 50Hz PAL machine with 312 raster lines
-
-	number of rasters * frames in second * 60 seconds
-	RASTERS_PER_MINUTE = 312 rasters per frame * 50 frames per second * 60 seconds = 936000 raster lines per minute
-
-	tempo = (RASTERS_PER_MINUTE / BEATS_PER_MINUTE) / 2;
-	      = (936000 / 125) / 2 = 3744 = $0EA0
-*/
-
-/*
-	Protracker CIA (Complex Interface Adapter) Timer Tempo Calculations:
-	--------------------------------------------------------------------
-	Fcolor                        = 4.43361825 MHz (PAL color carrier frequency)
-	CPU Clock   = Fcolor * 1.6    = 7.0937892  MHz
-	CIA Clock   = Cpu Clock / 10  = 709.37892  kHz
-
-	50 Hz Timer = CIA Clock / 50  = 14187.5784
-	Tempo num.  = 50 Hz Timer*125 = 1773447
-
-	For NTSC: CPU Clock = 7.1590905 MHz --> Tempo num. = 1789773
-
-	To calculate tempo we use the formula: TimerValue = 1773447 / Tempo
-	The timer is only a word, so the available tempo range is 28-255 (++).
-	Tempo 125 will give a normal 50 Hz timer (VBlank).
-
-	A normal Protracker VBlank song tempo can be calculated as follows:
-	We want to know the tempo in BPM (Beats Per Minute), or rather quarter-
-	notes per minute. Four notes makes up a quarternote.
-	First find interrupts per minute: 60 seconds * 50 per second = 3000
-	Divide by interrupts per quarter note = 4 notes * speed
-	This gives: Tempo = 3000/(4*speed)
-	simplified: Tempo = 750/speed
-	For a normal song in speed 6 this formula gives: 750/6 = 125 BPM
-*/
-
-/*
-	AXELF.MOD        0x0e94 rasterline wait from trying randomly
-	tempo = 125
-	ticks/row = 6	IS THIS 'SPEED'?
-	rows/beat = 4
-*/
-
 #define MAX_INSTRUMENTS						32
 #define CPU_FREQUENCY						40500000
 #define AMIGA_PAULA_CLOCK					(70937892 / 20) // CPU clock / 20
@@ -80,23 +20,12 @@ char mod31_sigs[NUM_SIGS][4] =
 	{ 0x4D, 0x21, 0x4b, 0x21 }, // M!K!
 	{ 0x46, 0x4c, 0x54, 0x34 }, // FLT4
 	{ 0x46, 0x4c, 0x54, 0x38 }  // FLT8
-	// 'M.K.','8CHN', '4CHN','6CHN','FLT4','FLT8' = 31 instruments.
 };
 
 unsigned long	load_addr;
 unsigned char	mod_tmpbuf[23];
 
-/*
-  Period = 214 = 16574.27 Hz sample rate. Time base gets added 40.5M times per second.
-  16574.27 * 2^24 / 40.5M = 6866 for period = 214
-  If period is higher, then this number will be lower, so it should be 6866*214 / PERIOD = 1469038 / PERIOD
-
-  If we calculate N = 2^24 / PERIOD, then what we want will be (1469038 x N ) >> 24
-  But our multiplier is only 23x18 bits so N = 2^16 / PERIOD should fit, and still allow us to just shift the result right by 2 bytes
-*/
-
-// long			sample_rate_divisor			= 1469038; // PAULs original calculation
-long			sample_rate_divisor			= 1468299; // MY calculation
+long			sample_rate_divisor			= 1468299;
 
 unsigned char   beats_per_minute			= 125;
 unsigned short	song_offset					= 0;
@@ -122,49 +51,60 @@ unsigned char	song_pattern_list			[128];
 unsigned char	pattern_buffer				[16];
 
 unsigned char   samplenum;
-unsigned short  period;
-unsigned short  effect;
+unsigned char   effectlo;
+unsigned char   effecthi;
+unsigned char   periodlo;
+unsigned char   periodhi;
 unsigned char   freqlo;
 unsigned char   freqhi;
+
+unsigned char*  sample_address_ptr;
+unsigned char   sample_address0;
+unsigned char   sample_address1;
+unsigned char   sample_address2;
+unsigned char   sample_address3;
 
 // ------------------------------------------------------------------------------------
 
 void modplay_playnote(unsigned char channel, unsigned char *note)
 {
-	samplenum  = note[0]  & 0xf0;
+	samplenum  = note[0] & 0xf0;
 	samplenum |= note[2] >> 4;
 	samplenum--;
 
-	period = ((note[0] & 0xf) << 8) + note[1];
-	effect = ((note[2] & 0xf) << 8) + note[3];
+	periodlo = note[1];
+	periodhi = (note[0] & 0xf);
+
+	effectlo = note[3];
+	effecthi = (note[2] & 0xf);
 
 	unsigned char ch_ofs = channel << 4;
 
-	if(period)
+	if((periodlo | periodhi) != 0)
 	{
-		// Stop playback while loading new sample data
-		poke(0xd720 + ch_ofs, 0x00);
+		poke(0xd720 + ch_ofs, 0x00);																						// Stop playback while loading new sample data
 
-		// Load sample address into base and current addr
-		poke(0xd721 + ch_ofs, (((unsigned short)sample_addr[samplenum]) >> 0 ) & 0xff);
-		poke(0xd722 + ch_ofs, (((unsigned short)sample_addr[samplenum]) >> 8 ) & 0xff);
-		poke(0xd723 + ch_ofs, (((unsigned long )sample_addr[samplenum]) >> 16) & 0xff);
-		poke(0xd72a + ch_ofs, (((unsigned short)sample_addr[samplenum]) >> 0 ) & 0xff);
-		poke(0xd72b + ch_ofs, (((unsigned short)sample_addr[samplenum]) >> 8 ) & 0xff);
-		poke(0xd72c + ch_ofs, (((unsigned long )sample_addr[samplenum]) >> 16) & 0xff);
+		sample_address_ptr = (unsigned char*)sample_addr + samplenum * 4;
+		sample_address0 = *(sample_address_ptr+0);
+		sample_address1 = *(sample_address_ptr+1);
+		sample_address2 = *(sample_address_ptr+2);
+		sample_address3 = *(sample_address_ptr+3);
 
-		// Sample top address
-		top_addr = sample_addr[samplenum] + sample_lengths[samplenum];
+		poke(0xd721 + ch_ofs, sample_address0);																				// Load sample address into base and current addr
+		poke(0xd722 + ch_ofs, sample_address1);
+		poke(0xd723 + ch_ofs, sample_address2);
+		poke(0xd72a + ch_ofs, sample_address0);
+		poke(0xd72b + ch_ofs, sample_address1);
+		poke(0xd72c + ch_ofs, sample_address2);
+
+		top_addr = sample_addr[samplenum] + sample_lengths[samplenum];														// Sample top address
 		poke(0xd727 + ch_ofs, (top_addr >> 0) & 0xff);
 		poke(0xd728 + ch_ofs, (top_addr >> 8) & 0xff);
 
-		// Volume
-		poke(0xd729 + ch_ofs, sample_vol[samplenum]);
-		// Mirror channel quietly on other side for nicer stereo imaging
-		poke(0xd71c + channel, sample_vol[samplenum]);
+		poke(0xd729 + ch_ofs, sample_vol[samplenum]);																		// Volume
+		poke(0xd71c + channel, sample_vol[samplenum]);																		// Mirror channel quietly on other side for nicer stereo imaging
 
-		// XXX - We should set base addr and top addr to the looping range, if the sample has one.
-		if (sample_loopstart[samplenum])
+		if (sample_loopstart[samplenum])																					// XXX - We should set base addr and top addr to the looping range, if the sample has one.
 		{
 			// start of loop
 			poke(0xd721 + ch_ofs, (((unsigned long )sample_addr[samplenum] + 2 * sample_loopstart[samplenum]                                  ) >> 0 ) & 0xff);
@@ -176,82 +116,79 @@ void modplay_playnote(unsigned char channel, unsigned char *note)
 			poke(0xd728 + ch_ofs, (((unsigned short)sample_addr[samplenum] + 2 * (sample_loopstart[samplenum] + sample_looplen[samplenum] - 1)) >> 8 ) & 0xff);
 		}
 
-		// calculate frequency
-		// freq = 0xFFFFL / period
+		MATH.MULTINA0 = 0xff;																								// calculate frequency // freq = 0xFFFFL / period
+		MATH.MULTINA1 = 0xff;
+		MATH.MULTINA2 = 0;
+		MATH.MULTINA3 = 0;
 
-		poke(0xd770, 0xff        ); // MULTINA+0
-		poke(0xd771, 0xff        ); // MULTINA+1
-		poke(0xd772, 0           ); // MULTINA+2
-		poke(0xd773, 0           ); // MULTINA+3
+		MATH.MULTINB0 = periodlo;
+		MATH.MULTINB1 = periodhi;
+		MATH.MULTINB2 = 0;
+		MATH.MULTINB3 = 0;
 
-		poke(0xd774, period      ); // MULTINB+0
-		poke(0xd775, period >> 8 ); // MULTINB+1
-		poke(0xd776, 0           ); // MULTINB+2
-		poke(0xd777, 0           ); // MULTINB+3
+		__asm(
+			" lda 0xd020\n"
+			" sta 0xd020\n"
+			" lda 0xd020\n"
+			" sta 0xd020\n"
+			" lda 0xd020\n"
+			" sta 0xd020\n"
+			" lda 0xd020\n"
+			" sta 0xd020"
+		);
 
-		poke(0xd020, peek(0xd020));
-		poke(0xd020, peek(0xd020));
-		poke(0xd020, peek(0xd020));
-		poke(0xd020, peek(0xd020));
+		freqlo = MATH.DIVOUTFRACT0;
+		freqhi = MATH.DIVOUTFRACT1;
 
-		freqlo = peek(0xd76c);
-		freqhi = peek(0xd76d);
+		MATH.MULTINA0 = sample_rate_divisor >> 0;
+		MATH.MULTINA1 = sample_rate_divisor >> 8;
+		MATH.MULTINA2 = sample_rate_divisor >> 16;
+		MATH.MULTINA3 = 0;
 
-		poke(0xd770, sample_rate_divisor >> 0 ); // MULTINA+0
-		poke(0xd771, sample_rate_divisor >> 8 ); // MULTINA+1
-		poke(0xd772, sample_rate_divisor >> 16); // MULTINA+2
-		poke(0xd773, 0                        ); // MULTINA+3
+		MATH.MULTINB0 = freqlo;
+		MATH.MULTINB1 = freqhi;
+		MATH.MULTINB2 = 0;
+		MATH.MULTINB3 = 0;
 
-		poke(0xd774, freqlo); // MULTINB+0
-		poke(0xd775, freqhi); // MULTINB+1
-		poke(0xd776, 0     ); // MULTINB+2
-		poke(0xd777, 0     ); // MULTINB+3
-
-		// Pick results from output / 2^16
-		poke(0xd724 + ch_ofs, peek(0xd77a)); // MULTOUT+2
-		poke(0xd725 + ch_ofs, peek(0xd77b)); // MULTOUT+3
+		poke(0xd724 + ch_ofs, MATH.MULTOUT2);																				// Pick results from output / 2^16
+		poke(0xd725 + ch_ofs, MATH.MULTOUT3);
 		poke(0xd726 + ch_ofs, 0);
 
 		if (sample_loopstart[samplenum])
 		{
-			// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
-			poke(0xd720 + ch_ofs, 0xC2);
+			poke(0xd720 + ch_ofs, 0xc2);																					// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
 		}
 		else
 		{
-			// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
-			poke(0xd720 + ch_ofs, 0x82);
+			poke(0xd720 + ch_ofs, 0x82);																					// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
 		}
 	}
 
-	// LV TODO - disable audio channels that I'm not interested in while debugging, but keep their effects running?
-
-	switch (effect & 0xf00)
+	switch (effecthi)
 	{
-		case 0xf00: // Speed!!!
-			if ((effect & 0x0ff) < 0x20) // speed (00-1F) / tempo (20-FF)
+		case 0xf:																											// Speed / tempo
+			if (effectlo < 0x20)																							// speed (00-1F) / tempo (20-FF)
 			{
 				tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
-				tempo *= 6 / (effect & 0x1f);
+				tempo *= 6 / (effectlo & 0x1f);
 				speed = tempo / NUMRASTERS;
 				ticks = speed;
 			}
-			else // effect & 0x0ff >= 0x20
+			else																											// effect & 0x0ff >= 0x20
 			{
-				beats_per_minute = (effect & 0xff);
+				beats_per_minute = effectlo;
 				tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
 				speed = tempo / NUMRASTERS;
 				ticks = speed;
 			}
 			break;
-		case 0xc00: // Channel volume
-			poke(0xd729 + ch_ofs, effect & 0xff); // CH0VOLUME
-			poke(0xd71c + channel, effect & 0xff); // CH0RVOL
+		case 0xc:																											// Channel volume
+			poke(0xd729 + ch_ofs, effectlo);																				// CH0VOLUME
+			poke(0xd71c + channel, effectlo);																				// CH0RVOL
 			break;
 	}
 
-	// Enable audio dma, enable bypass of audio mixer
-	poke(0xd711, 0b10010000);
+	poke(0xd711, 0b10010000);																								// Enable audio dma, enable bypass of audio mixer
 }
 
 void modplay_play()

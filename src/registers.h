@@ -468,12 +468,27 @@ struct _MATH						// 0xd70f
 		uint8_t	MULBUSY : 1;
 		uint8_t	DIVBUSY : 1;
 	};
-	uint8_t		_NA2[59];			// 0xd710
-	uint32_t	DIVOUT;				// 0xd768
-	uint32_t	DIVOUTFRACT;		// 0xd76c
-	uint32_t	MULTINA;			// 0xd770
-	uint32_t	MULTINB;			// 0xd774
-	uint32_t	MULTOUT;			// 0xd778
+	uint8_t		_NA2[88];			// 0xd710
+	uint8_t		DIVOUT0;			// 0xd768
+	uint8_t		DIVOUT1;			// 0xd769
+	uint8_t		DIVOUT2;			// 0xd76a
+	uint8_t		DIVOUT3;			// 0xd76b
+	uint8_t		DIVOUTFRACT0;		// 0xd76c
+	uint8_t		DIVOUTFRACT1;		// 0xd76d
+	uint8_t		DIVOUTFRACT2;		// 0xd76e
+	uint8_t		DIVOUTFRACT3;		// 0xd76f
+	uint8_t		MULTINA0;			// 0xd770
+	uint8_t		MULTINA1;			// 0xd771
+	uint8_t		MULTINA2;			// 0xd772
+	uint8_t		MULTINA3;			// 0xd773
+	uint8_t		MULTINB0;			// 0xd774
+	uint8_t		MULTINB1;			// 0xd775
+	uint8_t		MULTINB2;			// 0xd776
+	uint8_t		MULTINB3;			// 0xd777
+	uint8_t		MULTOUT0;			// 0xd778
+	uint8_t		MULTOUT1;			// 0xd779
+	uint8_t		MULTOUT2;			// 0xd77a
+	uint8_t		MULTOUT3;			// 0xd77b
 };
 
 // ---------------------------------------------------------------------------
