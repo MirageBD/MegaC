@@ -2,45 +2,6 @@ static uint32_t const	PAL_CLOCK		= 3546895;
 static double const		SAMPLE_RATE		= 48000;
 static double const		FINETUNE_BASE	= 1.0072382087;
 
-uint16_t periods[] =
-{
-	856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480, 453,
-	428, 404, 381, 360, 339, 320, 302, 285, 269, 254, 240, 226,
-	214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120, 113
-};
-
-uint8_t		funktable[] = { 0, 5, 6, 7, 8, 10, 11, 13, 16, 19, 22, 26, 32, 43, 64, 128 };
-
-int16_t*	waves	[ 3];
-int16_t		sine	[64];
-int16_t		saw		[64];
-int16_t		square	[64];
-
-off_t		filelength;
-bool		loop;
-bool		headphones;
-float*		audiobuf;
-float*		mixbuf;
-
-int			pattern;
-int			row;
-int			currow;
-int			curpattern;
-bool		addflag; // used for emulating obscure Dxx bug
-uint8_t*	curdata;
-bool		done;
-uint8_t		globaltick;
-bool		patternset;
-uint8_t		delcount;
-bool		delset;
-bool		inrepeat;
-double		ticktime;
-double		nextticktime;
-uint8_t		nexttempo;
-uint8_t		nextspeed;
-uint8_t		numsamples;
-uint8_t		type;
-
 typedef struct
 {
 	char		name[23];
@@ -57,10 +18,7 @@ typedef struct
 	sample*		sample;
 	int8_t		volume;
 	int8_t		tempvolume;
-	uint32_t	index;
-	float*		buffer;
-	float*		resampled;
-	uint32_t	increment;
+	uint32_t	index;			// used in 'retrigger note + x vblanks (ticks)', depends on offset
 	bool		repeat;
 	bool		stop;
 	uint8_t		deltick;
@@ -70,9 +28,7 @@ typedef struct
 	uint16_t	tempperiod;
 	uint8_t		portstep;
 	uint8_t		cut;
-	SRC_STATE*	converter;
-	SRC_DATA*	cdata;
-	int8_t		retrig;
+	int8_t		retrig;			// seems to be always 0 and never set again
 	uint8_t		vibspeed;
 	uint8_t		vibwave;
 	uint8_t		vibpos;
@@ -81,30 +37,59 @@ typedef struct
 	uint8_t		tremwave;
 	uint8_t		trempos;
 	uint8_t		tremdepth;
-	uint8_t		funkcounter;
-	uint8_t		funkpos;
-	uint8_t		funkspeed;
 	int8_t		looppoint;
 	int8_t		loopcount;
 	uint16_t	offset;
 	uint16_t	offsetmem;
-	float		error;
 } channel;
 
-typedef struct
+uint16_t periods[] =
 {
-	char		name[21];
-	uint8_t*	patterns;
-	uint8_t		songlength;
-	sample*		samples[31];
-	uint8_t		patternlist[128];
-	uint32_t	speed;
-	uint16_t	tempo;
-	char		magicstring[5];
-} modfile;
+	856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480, 453,
+	428, 404, 381, 360, 339, 320, 302, 285, 269, 254, 240, 226,
+	214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120, 113
+};
 
-modfile* gm;
-channel* gcp;
+int16_t*	waves	[ 3];
+int16_t		sine	[64];
+int16_t		saw		[64];
+int16_t		square	[64];
+
+off_t		filelength;
+bool		loop;
+float*		audiobuf;
+float*		mixbuf;
+
+int			curpattern;
+uint8_t*	currowdata;						// 4 channels * 4 bytes = 16 bytes. copy using DMA
+bool		done;
+bool		patternset;
+double		ticktime;
+double		nextticktime;
+uint8_t		nexttempo;
+uint8_t		nextspeed;
+uint8_t		numsamples;
+uint8_t		type;
+
+// variables initialized in initsound
+int			row;
+int			currow;
+int			pattern;
+uint8_t		delcount;
+uint8_t		globaltick;						// goes from 0 to mod_speed
+bool		delset;
+bool		inrepeat;
+bool		addflag;						// used for emulating obscure Dxx bug
+
+// current MOD variables
+char		mod_name[21];
+uint8_t*	mod_patterns;
+uint8_t		mod_songlength;
+sample*		mod_samples[31];
+uint8_t		mod_patternlist[128];
+uint32_t	mod_speed;
+uint16_t	mod_tempo;
+char		mod_magicstring[5];
 
 int findperiod(uint16_t period)
 {
@@ -158,15 +143,20 @@ channel* initsound()
 	mixbuf				= malloc(0.08 * 2 * SAMPLE_RATE * sizeof(float  ));
 	audiobuf			= malloc(0.08 * 2 * SAMPLE_RATE * sizeof(float  ));
 
+	row			= 0;
+	currow		= 0;
+	pattern		= 0;
+	delcount	= 0;
+	globaltick	= 0;
+	delset		= false;
+	inrepeat	= false;
+	addflag		= false;
+
 	for(int i = 0; i < 4; i++)
 	{
-		channels[i].error					= 0;
 		channels[i].volume					= 0;
 		channels[i].tempvolume				= 0;
 		channels[i].deltick					= 0;
-		channels[i].increment				= 0.0f;
-		channels[i].buffer					= malloc(PAL_CLOCK * sizeof(float));
-		channels[i].resampled				= malloc(0.08 * SAMPLE_RATE * sizeof(float));
 		channels[i].stop					= true;
 		channels[i].repeat					= false;
 		channels[i].period					= 0;
@@ -180,26 +170,9 @@ channel* initsound()
 		channels[i].tremwave				= 0;
 		channels[i].vibpos					= 0;
 		channels[i].trempos					= 0;
-		channels[i].funkcounter				= 0;
-		channels[i].funkpos					= 0;
-		channels[i].funkspeed				= 0;
 		channels[i].looppoint				= 0;
 		channels[i].loopcount				= -1;
 		channels[i].sample					= NULL;
-		channels[i].converter				= src_new(SRC_LINEAR, 1, &libsrc_error);
-		channels[i].cdata					= malloc(sizeof(SRC_DATA));
-		channels[i].cdata->data_in			= channels[i].buffer;
-		channels[i].cdata->data_out			= channels[i].resampled;
-		channels[i].cdata->output_frames	= SAMPLE_RATE * 0.02;
-		channels[i].cdata->end_of_input		= 0;
-		row			= 0;
-		currow		= 0;
-		pattern		= 0;
-		delcount	= 0;
-		globaltick	= 0;
-		delset		= false;
-		inrepeat	= false;
-		addflag		= false;
 	}
 
 	return channels;
@@ -230,20 +203,20 @@ void renderpattern(uint8_t* patterndata)
 
 void preprocesseffects(uint8_t* data)
 {
-	if ((*(data+2) & 0x0f) == 0x0f) // set speed/tempo
+	if ((*(data+2) & 0x0f) == 0x0f) // set speed / tempo
 	{
 		uint8_t effectdata = *(data + 3);
 
 		if(effectdata > 0x1f)
 		{
-			gm->tempo    = effectdata;
+			mod_tempo    = effectdata;
 			nexttempo    = effectdata;
 			ticktime     = 1 / (0.4 * effectdata);
 			nextticktime = 1 / (0.4 * effectdata);
 		}
 		else
 		{
-			gm->speed = effectdata;
+			mod_speed = effectdata;
 			nextspeed = effectdata;
 		}
 	}
@@ -257,7 +230,8 @@ void processnoteeffects(channel* c, uint8_t* data)
 	switch(tempeffect)
 	{
 		case 0x00: // normal / arpeggio
-			if(effectdata) c->tempperiod = c->arp[globaltick % 3];
+			if(effectdata)
+				c->tempperiod = c->arp[globaltick % 3];
 			break;
 
 		case 0x01: // slide up
@@ -383,7 +357,7 @@ void processnote(channel* c, uint8_t* data, uint8_t offset, bool overwrite)
 	uint8_t effectdata = *(data + 3);
 	
 	if(globaltick == 0 && tempeffect == 0x0e && (effectdata & 0xf0) == 0xd0)
-			c->deltick = (effectdata & 0x0f) % gm->speed;
+			c->deltick = (effectdata & 0x0f) % mod_speed;
 
 	if(globaltick == c->deltick)
 	{
@@ -394,12 +368,11 @@ void processnote(channel* c, uint8_t* data, uint8_t offset, bool overwrite)
 		{
 			if(tempsam)
 			{
-				c->error = 0;
 				c->stop = false;
 				tempsam--;
 				if(tempeffect != 0x03 && tempeffect != 0x05)
 					c->offset = 0;
-				c->sample = gm->samples[tempsam];
+				c->sample = mod_samples[tempsam];
 				c->volume = c->sample->volume;
 				c->tempvolume = c->volume;
 			}
@@ -421,7 +394,6 @@ void processnote(channel* c, uint8_t* data, uint8_t offset, bool overwrite)
 					c->repeat		= false;
 					c->vibpos		= 0;
 					c->trempos		= 0;
-					c->error		= 0;
 				}
 				c->portdest = period;
 			}
@@ -508,7 +480,7 @@ void processnote(channel* c, uint8_t* data, uint8_t offset, bool overwrite)
 					break;
 				if(!patternset)
 					pattern++;
-				if(pattern >= gm->songlength)
+				if(pattern >= mod_songlength)
 					pattern = 0;
 				row = (effectdata >> 4) * 10 + (effectdata & 0x0f);
 				patternset = true;
@@ -572,7 +544,7 @@ void processnote(channel* c, uint8_t* data, uint8_t offset, bool overwrite)
 						break;
 
 					case 0xf0:
-						c->funkspeed = funktable[effectdata & 0x0f];
+						// c->funkspeed = funktable[effectdata & 0x0f];
 						break;
 
 					default:
@@ -604,6 +576,7 @@ void processnote(channel* c, uint8_t* data, uint8_t offset, bool overwrite)
 	// RESAMPLE PER TICK
 
 	int writesize = SAMPLE_RATE * ticktime;
+
 	if(c->volume < 0)
 		c->volume = 0;
 	else if(c->volume > 64)
@@ -619,103 +592,21 @@ void processnote(channel* c, uint8_t* data, uint8_t offset, bool overwrite)
 	else if(c->tempperiod < 113)
 		c->tempperiod = 113;
 
-	c->cdata->output_frames = ticktime * SAMPLE_RATE;
+	// LV - CONVERTER STUFF WAS HAPPENING HERE
 
-	if(c->stop)
-	{
-		// write empty frame
-
-		conv_ratio = 1.0;
-		c->cdata->src_ratio = conv_ratio;
-		src_set_ratio(c->converter, conv_ratio);
-		c->cdata->input_frames = ticktime * SAMPLE_RATE;
-
-		for(int i = 0; i < ticktime * SAMPLE_RATE; i++)
-			c->buffer[i] = 0.0f;
-	}
-	else
-	{
-		// write non-empty frame to buffer to be interpolated
-
-		double rate = calcrate(c->tempperiod, c->sample->finetune);
-		conv_ratio = SAMPLE_RATE / rate;
-		c->cdata->src_ratio = conv_ratio;
-		src_set_ratio(c->converter, conv_ratio);
-		c->cdata->input_frames = ticktime * rate;
-
-		c->funkcounter += c->funkspeed;
-		if(c->funkcounter >= 128)
-		{
-			c->funkcounter = 0;
-			c->sample->sampledata[c->sample->repeatpoint * 2 + c->funkpos] ^= 0xff;
-			c->funkpos = (c->funkpos + 1) % (c->sample->repeatlength * 2);
-		}
-
-		for(int i = 0; i < ticktime * rate - 1; i++)
-		{
-			c->buffer[i] = (float)c->sample->sampledata[c->index++] / 128.0f * c->tempvolume / 64.0 * 0.4f;
-
-			if(c->repeat && (c->index >= (c->sample->repeatlength) * 2 + (c->sample->repeatpoint) * 2))
-			{
-				c->index = c->sample->repeatpoint * 2;
-			}
-			else if(c->index >= (c->sample->length) * 2)
-			{
-				if(c->sample->repeatlength > 1)
-				{
-					c->index = c->sample->repeatpoint * 2;
-					c->repeat = true;
-				}
-				else
-				{
-					for(int j = i + 1; j < ticktime * rate - 1; j++)
-						c->buffer[j] = 0;
-					c->stop = true;
-					break;
-				}
-			}
-		}
-	}
-
-	src_process(c->converter, c->cdata);
-
-	if(c->cdata->output_frames_gen != c->cdata->output_frames)
-	{
-		for(int k = c->cdata->output_frames_gen; k < c->cdata->output_frames; k++)
-		{
-			c->resampled[k] = c->resampled[c->cdata->output_frames_gen - 1];
-		}
-	}
-
-	// WRITE TO MIXING BUFFER
-	if(overwrite)
-	{
-		for(int i = 0; i < writesize; i++)
-		{
-			audiobuf[i * 2 + offset] = c->resampled[i];
-		}
-	}
-	else
-	{
-		for(int i = 0; i < writesize; i++)
-		{
-			audiobuf[i * 2 + offset] += c->resampled[i];
-		}
-	}
-
-	if(globaltick == gm->speed - 1)
+	if(globaltick == mod_speed - 1)
 	{
 		c->tempperiod = c->period;
 		c->deltick = 0;
 	}
 }
 
-void sampleparse(modfile* m, uint8_t* filearr, uint32_t start)
+void sampleparse(uint8_t* filearr, uint32_t start)
 {
 	for(int i = 0; i < numsamples; i++)
 	{
 		sample* s = malloc(sizeof(sample));
-		m->samples[i] = s;
+		mod_samples[i] = s;
 
 		strncpy(s->name, (char*)filearr+20+(30*i), 22);
 		s->name[22] = '\x00';
@@ -769,16 +660,16 @@ void steptick(channel* cp)
 			pattern++;
 	}
 
-	if(pattern >= gm->songlength)
+	if(pattern >= mod_songlength)
 	{
 		if(loop)
 		{
 			pattern      =    0;
 			row          =    0;
 			globaltick   =    0;
-			gm->speed    =    6;
+			mod_speed    =    6;
 			nextspeed    =    6;
-			gm->tempo    =  125;
+			mod_tempo    =  125;
 			nexttempo    =  125;
 			ticktime     = 0.02;
 			nextticktime = 0.02;
@@ -793,30 +684,30 @@ void steptick(channel* cp)
 	if(globaltick == 0)
 	{
 		if(pattern != curpattern)
-			renderpattern(gm->patterns + 1024 * gm->patternlist[pattern]);
+			renderpattern(mod_patterns + 1024 * mod_patternlist[pattern]);
 
 		patternset = false;
-		curdata    = gm->patterns + ((gm->patternlist[pattern]) * 1024) + (16 * row);
+		currowdata = mod_patterns + ((mod_patternlist[pattern]) * 1024) + (16 * row);
 		currow     = row;
 		curpattern = pattern;
 
-		preprocesseffects(curdata +  0);
-		preprocesseffects(curdata +  4);
-		preprocesseffects(curdata +  8);
-		preprocesseffects(curdata + 12);
+		preprocesseffects(currowdata +  0);
+		preprocesseffects(currowdata +  4);
+		preprocesseffects(currowdata +  8);
+		preprocesseffects(currowdata + 12);
 
-		gm->speed = nextspeed;
-		gm->tempo = nexttempo;
+		mod_speed = nextspeed;
+		mod_tempo = nexttempo;
 		ticktime = nextticktime;
 	}
 
-	processnote(&cp[0], curdata +  0, 0,  true);
-	processnote(&cp[1], curdata +  4, 1,  true);
-	processnote(&cp[2], curdata +  8, 1, false);
-	processnote(&cp[3], curdata + 12, 0, false);
+	processnote(&cp[0], currowdata +  0, 0,  true);
+	processnote(&cp[1], currowdata +  4, 1,  true);
+	processnote(&cp[2], currowdata +  8, 1, false);
+	processnote(&cp[3], currowdata + 12, 0, false);
 
 	globaltick++;
-	if(globaltick == gm->speed)
+	if(globaltick == mod_speed)
 	{
 		if(delcount)
 		{
@@ -837,7 +728,7 @@ void steptick(channel* cp)
 	}
 }
 
-modfile* modparse(FILE* f)
+void modparse(FILE* f)
 {
 	uint8_t* filearr = malloc(filelength * sizeof(uint8_t));
 	int seek = 0;
@@ -848,12 +739,12 @@ modfile* modparse(FILE* f)
 
 	modfile* m = malloc(sizeof(modfile));
 	
-	strncpy((char*)m->name, (char*)filearr, 20);
-	m->name[20] = '\x00';
+	strncpy((char*)mod_name, (char*)filearr, 20);
+	mod_name[20] = '\x00';
 
-	memcpy(m->magicstring, filearr + 1080, 4);
-	m->magicstring[4] = '\x00';
-	if(strcmp(m->magicstring, "M.K.") && strcmp(m->magicstring, "4CHN"))
+	memcpy(mod_magicstring, filearr + 1080, 4);
+	mod_magicstring[4] = '\x00';
+	if(strcmp(mod_magicstring, "M.K.") && strcmp(mod_magicstring, "4CHN"))
 		type = 1;	// Not a 31 instrument 4 channel MOD file. May not be playable
 	else
 		type = 0;
@@ -861,24 +752,24 @@ modfile* modparse(FILE* f)
 	numsamples = type ? 15 : 31;
 
 	if (type == 0)
-		m->songlength = filearr[950];
+		mod_songlength = filearr[950];
 	else
-		m->songlength = filearr[470];
+		mod_songlength = filearr[470];
 
 	if (type == 0)
-		memcpy(m->patternlist, filearr + 952, 128);
+		memcpy(mod_patternlist, filearr + 952, 128);
 	else
-		memcpy(m->patternlist, filearr + 472, 128);
+		memcpy(mod_patternlist, filearr + 472, 128);
 
 	int max = 0;
 	for(int i = 0; i < 128; i++)
 	{
-		if(m->patternlist[i] > max)
-			max = m->patternlist[i];
+		if(mod_patternlist[i] > max)
+			max = mod_patternlist[i];
 	}
 
 	uint32_t len = (uint32_t)(1024 * (max + 1)); // 1024 = size of pattern
-	m->patterns = malloc(len);
+	mod_patterns = malloc(len);
 
 	uint16_t size;
 	if(type == 0)
@@ -886,18 +777,16 @@ modfile* modparse(FILE* f)
 	else
 		size = 600;
 
-	memcpy(m->patterns, filearr + size, len);
+	memcpy(mod_patterns, filearr + size, len);
 	
-	sampleparse(m, filearr, len + size);
+	sampleparse(filearr, len + size);
 	
-	m->speed     =    6; // default speed = 6
+	mod_speed    =    6; // default speed = 6
 	nextspeed    =    6;
-	m->tempo     =  125;
+	mod_tempo     =  125;
 	nexttempo    =  125;
 	ticktime     = 0.02;
 	nextticktime = 0.02;
 
 	free(filearr);
-
-	return m;
 }
