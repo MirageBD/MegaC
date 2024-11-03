@@ -624,8 +624,8 @@ void sampleparse(uint8_t* filearr, uint32_t start)
 			int8_t tempfinetune = filearr[44 + 30 * i] & 0x0f;
 			if(tempfinetune > 0x07)
 				tempfinetune |= 0xf0;
-
 			s->finetune = tempfinetune;
+
 			s->volume = filearr[45 + 30 * i];
 
 			s->repeatpoint   = (uint16_t)*(filearr + 46 + (30 * i)) << 8;

@@ -37,20 +37,24 @@ uint32_t		mod_addr;
 uint16_t		mod_song_offset;
 uint32_t		mod_sample_data;
 uint8_t			mod_numpatterns;
-uint8_t			mod_numpatternindices;
+uint8_t			mod_songlength;
 uint8_t			mod_speed;
 uint16_t		mod_tempo;
-uint8_t			mod_patterns				[128];
-uint8_t			mod_pattern_buffer			[16];			// data for current pattern
+uint8_t			mod_patternlist				[128];
 uint8_t			mod_tmpbuf[23];
+
+uint8_t			currowdata					[16];			// data for current pattern
 
 uint8_t			nextspeed;
 uint8_t			nexttempo;
 
+uint8_t			loop						= 1;
+
 uint8_t			beats_per_minute			= 125;
-uint8_t			current_pattern_index		= 0;
-uint8_t			current_pattern				= 0;
-uint8_t			row							= 0;
+uint8_t			pattern;
+uint8_t			curpattern;
+uint8_t			row;
+uint8_t			currow;
 uint8_t			song_loop_point;			// unused
 uint16_t		top_addr;
 
@@ -114,17 +118,39 @@ uint8_t			globaltick;
 
 // ------------------------------------------------------------------------------------
 
-void modplay_playnote_c(uint8_t channel, uint8_t *note)
+void preprocesseffects(uint8_t* data)
 {
-	samplenum  = note[0] & 0xf0;
-	samplenum |= note[2] >> 4;
+	if ((*(data+2) & 0x0f) == 0x0f) // set speed / tempo
+	{
+		uint8_t effectdata = *(data + 3);
+
+		if(effectdata > 0x1f)
+		{
+			mod_tempo    = effectdata;
+			nexttempo    = effectdata;
+		}
+		else
+		{
+			mod_speed = effectdata;
+			nextspeed = effectdata;
+		}
+	}
+}
+
+void processnote(uint8_t channel, uint8_t *data)
+{
+	if(globaltick != 0)
+		return;
+
+	samplenum  = data[0] & 0xf0;
+	samplenum |= data[2] >> 4;
 	samplenum--;
 
-	periodlo = note[1];
-	periodhi = (note[0] & 0xf);
+	periodlo = data[1];
+	periodhi = (data[0] & 0xf);
 
-	effectdata = note[3];
-	effecthi = (note[2] & 0xf);
+	effectdata = data[3];
+	effecthi = (data[2] & 0xf);
 
 	uint8_t ch_ofs = channel << 4;
 
@@ -244,29 +270,56 @@ void modplay_playnote_c(uint8_t channel, uint8_t *note)
 
 void steptick()
 {
-	globaltick++;
-
-	if(globaltick != mod_speed)
-		return;
-
-	globaltick = 0;
-
-	// play pattern row
-	dma_lcopy(mod_addr + mod_song_offset + (current_pattern << 10) + (row << 4), (uint32_t)mod_pattern_buffer, 16);
-
-	modplay_playnote_c(0, &mod_pattern_buffer[0 ]);
-	modplay_playnote_c(1, &mod_pattern_buffer[4 ]);
-	modplay_playnote_c(2, &mod_pattern_buffer[8 ]);
-	modplay_playnote_c(3, &mod_pattern_buffer[12]);
-
-	row++;
-	if(row > 0x3f)
+	if(row == 64)
 	{
 		row = 0;
-		current_pattern_index++;
-		if(current_pattern_index == mod_numpatternindices)
-			current_pattern_index = 0;
-		current_pattern = mod_patterns[current_pattern_index];
+		pattern++;
+	}
+
+	if(pattern >= mod_songlength)
+	{
+		if(loop)
+		{
+			pattern      =    0;
+			row          =    0;
+			globaltick   =    0;
+			mod_speed    =    6;
+			nextspeed    =    6;
+			mod_tempo    =  125;
+			nexttempo    =  125;
+		}
+		else
+		{
+			done = 1;
+			return;
+		}
+	}
+
+	if(globaltick == 0)
+	{
+		dma_lcopy(mod_addr + mod_song_offset + (mod_patternlist[pattern] << 10) + (row << 4), (uint32_t)currowdata, 16);
+		currow     = row;
+		curpattern = pattern;
+
+		preprocesseffects(&currowdata[0 ]);
+		preprocesseffects(&currowdata[4 ]);
+		preprocesseffects(&currowdata[8 ]);
+		preprocesseffects(&currowdata[12]);
+
+		mod_speed = nextspeed;
+		mod_tempo = nexttempo;
+	}
+
+	processnote(0, &currowdata[0 ]);
+	processnote(1, &currowdata[4 ]);
+	processnote(2, &currowdata[8 ]);
+	processnote(3, &currowdata[12]);
+
+	globaltick++;
+	if(globaltick == mod_speed)
+	{
+		row++;
+		globaltick = 0;
 	}
 }
 
@@ -277,7 +330,7 @@ void modplay_init(uint32_t address)
 
 	mod_addr = address;
 
-	dma_lcopy(mod_addr + 1080, (uint32_t)mod_tmpbuf, 4);						// Check if 15 or 31 instrument mode (M.K.)
+	dma_lcopy(mod_addr + 1080, (uint32_t)mod_tmpbuf, 4);								// Check if 15 or 31 instrument mode (M.K.)
 
 	mod_tmpbuf[4] = 0;
 	numinstruments = 15;
@@ -302,23 +355,28 @@ void modplay_init(uint32_t address)
 		// 1 byte  - volume for sample ($00-$40)
 		// 2 bytes - repeat point in words
 		// 2 bytes - repeat length in words
-		dma_lcopy(mod_addr + 0x14 + i * 30 + 22, (uint32_t)mod_tmpbuf, 8);	// Get instrument data for plucking
+		dma_lcopy(mod_addr + 0x14 + i * 30 + 22, (uint32_t)mod_tmpbuf, 8);				// Get instrument data for plucking
 		sample_lengths      [i] = mod_tmpbuf[1] + (mod_tmpbuf[0] << 8);
 		sample_lengths      [i] <<= 1;													// Redenominate instrument length into bytes
-		sample_finetune     [i] = mod_tmpbuf[2];
+
+		int8_t tempfinetune = mod_tmpbuf[2] & 0x0f;
+		if(tempfinetune > 0x07)
+			tempfinetune |= 0xf0;
+
+		sample_finetune     [i] = tempfinetune;
 		sample_vol          [i] = mod_tmpbuf[3];										// Instrument volume
-		sample_repeatpoint  [i] = mod_tmpbuf[5] + (mod_tmpbuf[4] << 8);				// Repeat start point and end point
+		sample_repeatpoint  [i] = mod_tmpbuf[5] + (mod_tmpbuf[4] << 8);					// Repeat start point and end point
 		sample_repeatlength [i] = mod_tmpbuf[7] + (mod_tmpbuf[6] << 8);
 	}
 
-	mod_numpatternindices = lpeek(mod_addr + 20 + numinstruments*30 + 0);
+	mod_songlength = lpeek(mod_addr + 20 + numinstruments*30 + 0);
 	song_loop_point = lpeek(mod_addr + 20 + numinstruments*30 + 1);
 
-	dma_lcopy(mod_addr + 20 + numinstruments*30 + 2, (uint32_t)mod_patterns, 128);
-	for(i = 0; i < mod_numpatternindices; i++)
+	dma_lcopy(mod_addr + 20 + numinstruments*30 + 2, (uint32_t)mod_patternlist, 128);
+	for(i = 0; i < mod_songlength; i++)
 	{
-		if(mod_patterns[i] > mod_numpatterns)
-			mod_numpatterns = mod_patterns[i];
+		if(mod_patternlist[i] > mod_numpatterns)
+			mod_numpatterns = mod_patternlist[i];
 	}
 
 	mod_sample_data = mod_addr + mod_song_offset + ((uint32_t)mod_numpatterns + 1) * 1024;
@@ -329,8 +387,7 @@ void modplay_init(uint32_t address)
 		mod_sample_data += sample_lengths[i];
 	}
 
-	current_pattern_index = 0;
-	current_pattern = mod_patterns[0];
+	pattern = 0;
 	row = 0;
 
 	mod_speed = 6;
