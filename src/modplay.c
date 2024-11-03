@@ -290,9 +290,9 @@ void processnoteeffects(uint8_t channel, uint8_t* data)
 			}
 			else																											// effect & 0x0ff >= 0x20
 			{
-				mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
-				mod_tempo *= 6 / (effectdata & 0x1f);
-				mod_speed = mod_tempo / NUMRASTERS;
+				// mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
+				// // mod_tempo *= 6 / (effectdata & 0x1f);
+				// mod_speed = mod_tempo / NUMRASTERS;
 			}
 			break;
 	}
@@ -319,7 +319,8 @@ void processnote(uint8_t channel, uint8_t *data)
 	{
 		if(period || tempsam)
 		{
-				triggersample = 1;
+			triggersample = 1;
+
 			if(tempsam)
 			{
 				channel_stop[channel] = 0;
