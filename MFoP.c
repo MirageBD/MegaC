@@ -328,7 +328,7 @@ void processnoteeffects(channel* c, uint8_t* data)
 			break;
 		}
 
-		case 0x0f:
+		case 0x0f: // Speed / tempo
 			if(effectdata == 0)
 			{
 				done = true;
@@ -354,7 +354,7 @@ void processnote(channel* c, uint8_t* data, uint8_t offset, bool overwrite)
 	uint8_t effectdata = *(data + 3);
 	
 	if(globaltick == 0 && tempeffect == 0x0e && (effectdata & 0xf0) == 0xd0)
-			c->deltick = (effectdata & 0x0f) % mod_speed;
+		c->deltick = (effectdata & 0x0f) % mod_speed;
 
 	if(globaltick == c->deltick)
 	{
@@ -398,7 +398,7 @@ void processnote(channel* c, uint8_t* data, uint8_t offset, bool overwrite)
 
 		switch(tempeffect)
 		{
-			case 0x00:
+			case 0x00: // Normal play or Arpeggio
 				if(effectdata)
 				{
 					c->period = c->portdest;
@@ -437,7 +437,7 @@ void processnote(channel* c, uint8_t* data, uint8_t offset, bool overwrite)
 				}
 				break;
 
-			case 0x03:
+			case 0x03: // Tone Portamento
 				if(effectdata)
 					c->portstep = effectdata;
 				break;
@@ -549,8 +549,8 @@ void processnote(channel* c, uint8_t* data, uint8_t offset, bool overwrite)
 				}
 			}
 
-		default:
-			break;
+			default:
+				break;
 		}
 
 		if(c->tempperiod == 0 || c->sample == NULL || c->sample->length == 0)
