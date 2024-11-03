@@ -1,11 +1,6 @@
 				.extern modplay_play_c
-
-				.public tempo
-tempo:			.byte 0
-				.public ticks
-ticks:			.byte 0
-				.public speed
-speed:			.byte 0 ; speed gets fed into ticks. ticks decreases every frame until 0, which triggers a row increase.
+				.extern ticks
+				.extern mod_speed
 
 				; structtest:		.space 2
 
@@ -14,7 +9,6 @@ speed:			.byte 0 ; speed gets fed into ticks. ticks decreases every frame until 
 			.public modplay_play
 modplay_play:
 
-			; save state
 			dec ticks
 			beq fetchnextrow
 
@@ -22,7 +16,8 @@ modplay_play:
 			bra exit
 
 fetchnextrow:
-			lda speed
+
+			lda mod_speed
 			sta ticks
 			jsr modplay_play_c
 

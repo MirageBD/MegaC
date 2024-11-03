@@ -5,13 +5,13 @@
 #include "dma.h"
 
 #define MAX_INSTRUMENTS						32
-#define NUMRASTERS							(unsigned long)(2 * 312)
-#define RASTERS_PER_SECOND					(unsigned long)(NUMRASTERS * 50)	// PAL 0-311, NTSC 0-262
-#define RASTERS_PER_MINUTE					(unsigned long)(RASTERS_PER_SECOND * 60)
+#define NUMRASTERS							(uint32_t)(2 * 312)
+#define RASTERS_PER_SECOND					(uint32_t)(NUMRASTERS * 50)	// PAL 0-311, NTSC 0-262
+#define RASTERS_PER_MINUTE					(uint32_t)(RASTERS_PER_SECOND * 60)
 #define ROWS_PER_BEAT						4
 
 #define NUM_SIGS							4
-char mod31_sigs[NUM_SIGS][4] =
+int8_t mod31_sigs[NUM_SIGS][4] =
 {
 	{ 0x4D, 0x2e, 0x4b, 0x2e },	// M.K.
 	{ 0x4D, 0x21, 0x4b, 0x21 }, // M!K!
@@ -19,52 +19,102 @@ char mod31_sigs[NUM_SIGS][4] =
 	{ 0x46, 0x4c, 0x54, 0x38 }  // FLT8
 };
 
-unsigned long	load_addr;
-unsigned char	mod_tmpbuf[23];
+uint16_t periods[] =
+{
+	856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480, 453,
+	428, 404, 381, 360, 339, 320, 302, 285, 269, 254, 240, 226,
+	214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120, 113
+};
 
-long			sample_rate_divisor			= 1468299;
+// GLOBAL DATA
 
-unsigned char   beats_per_minute			= 125;
-unsigned short	song_offset					= 0;
-unsigned long	sample_data_start			= 0;
-unsigned char	max_pattern					= 0;
-unsigned char	current_pattern_index		= 0;
-unsigned char	current_pattern				= 0;
-unsigned char	current_row					= 0;
-unsigned char	numpatternindices;
-unsigned char	song_loop_point; // unused
-unsigned short	top_addr;
+int32_t			sample_rate_divisor			= 1468299;
+uint8_t			done						= 0;
 
-unsigned short	sample_lengths				[MAX_INSTRUMENTS];
-unsigned short	sample_loopstart			[MAX_INSTRUMENTS];
-unsigned short	sample_looplen				[MAX_INSTRUMENTS];
-unsigned char	sample_finetune				[MAX_INSTRUMENTS];
-unsigned long	sample_addr					[MAX_INSTRUMENTS];
-unsigned char	sample_vol					[MAX_INSTRUMENTS];
-unsigned char	song_pattern_list			[128];
-unsigned char	pattern_buffer				[16];
+// MOD DATA FOR 1 MOD ----------------------------------------
 
-unsigned char   samplenum;
-unsigned char   effectlo;
-unsigned char   effecthi;
-unsigned char   periodlo;
-unsigned char   periodhi;
-unsigned char   freqlo;
-unsigned char   freqhi;
+uint32_t		mod_addr;
+uint16_t		mod_song_offset;
+uint32_t		mod_sample_data;
+uint8_t			mod_numpatterns;
+uint8_t			mod_numpatternindices;
+uint8_t			mod_speed;
+uint16_t		mod_tempo;
+uint8_t			mod_patterns				[128];
+uint8_t			mod_pattern_buffer			[16];			// data for current pattern
+uint8_t			mod_tmpbuf[23];
 
-unsigned char*  sample_address_ptr;
-unsigned char   sample_address0;
-unsigned char   sample_address1;
-unsigned char   sample_address2;
-unsigned char   sample_address3;
+uint8_t			nextspeed;
+uint8_t			nexttempo;
 
-extern unsigned short	tempo;
-extern unsigned char	ticks;
-extern unsigned char	speed;
+uint8_t			beats_per_minute			= 125;
+uint8_t			current_pattern_index		= 0;
+uint8_t			current_pattern				= 0;
+uint8_t			current_row					= 0;
+uint8_t			song_loop_point;			// unused
+uint16_t		top_addr;
+
+// SAMPLE DATA FOR ALL INSTRUMENTS ---------------------------
+
+uint16_t		sample_lengths				[MAX_INSTRUMENTS];
+uint8_t			sample_finetune				[MAX_INSTRUMENTS];
+uint8_t			sample_vol					[MAX_INSTRUMENTS];
+uint16_t		sample_repeatpoint			[MAX_INSTRUMENTS];
+uint16_t		sample_repeatlength			[MAX_INSTRUMENTS];
+uint32_t		sample_addr					[MAX_INSTRUMENTS];
+
+// CHANNEL DATA FOR ALL 4 CHANNELS ---------------------------
+
+uint8_t			channel_sample				[4];
+int8_t			channel_volume				[4];
+int8_t			channel_tempvolume			[4];
+uint32_t		channel_index				[4];			// used in 'retrigger note + x vblanks (ticks)', depends on offset
+uint8_t			channel_repeat				[4];			// was bool, now 0-1 unsigned char
+uint8_t			channel_stop				[4];			// was bool, now 0-1 unsigned char
+uint8_t			channel_deltick				[4];
+uint16_t		channel_period				[4];
+uint16_t		channel_arp[3]				[4];
+uint16_t		channel_portdest			[4];
+uint16_t		channel_tempperiod			[4];
+uint8_t			channel_portstep			[4];
+uint8_t			channel_cut					[4];
+int8_t			channel_retrig				[4];			// seems to be always 0 and never set again
+uint8_t			channel_vibspeed			[4];
+uint8_t			channel_vibwave				[4];
+uint8_t			channel_vibpos				[4];
+uint8_t			channel_vibdepth			[4];
+uint8_t			channel_tremspeed			[4];
+uint8_t			channel_tremwave			[4];
+uint8_t			channel_trempos				[4];
+uint8_t			channel_tremdepth			[4];
+int8_t			channel_looppoint			[4];
+int8_t			channel_loopcount			[4];
+uint16_t		channel_offset				[4];
+uint16_t		channel_offsetmem			[4];
+
+// TEMP VALUES FOR PLAYNOTE ----------------------------------
+
+uint8_t			samplenum;
+uint8_t			effectdata;
+uint8_t			effecthi;
+uint8_t			periodlo;
+uint8_t			periodhi;
+uint8_t			freqlo;
+uint8_t			freqhi;
+
+uint8_t*		sample_address_ptr;
+uint8_t			sample_address0;
+uint8_t			sample_address1;
+uint8_t			sample_address2;
+uint8_t			sample_address3;
+
+// -----------------------------------------------------------
+
+uint8_t			ticks;
 
 // ------------------------------------------------------------------------------------
 
-void modplay_playnote_c(unsigned char channel, unsigned char *note)
+void modplay_playnote_c(uint8_t channel, uint8_t *note)
 {
 	samplenum  = note[0] & 0xf0;
 	samplenum |= note[2] >> 4;
@@ -73,16 +123,16 @@ void modplay_playnote_c(unsigned char channel, unsigned char *note)
 	periodlo = note[1];
 	periodhi = (note[0] & 0xf);
 
-	effectlo = note[3];
+	effectdata = note[3];
 	effecthi = (note[2] & 0xf);
 
-	unsigned char ch_ofs = channel << 4;
+	uint8_t ch_ofs = channel << 4;
 
 	if((periodlo | periodhi) != 0)
 	{
 		poke(0xd720 + ch_ofs, 0x00);																						// Stop playback while loading new sample data
 
-		sample_address_ptr = (unsigned char*)sample_addr + samplenum * 4;
+		sample_address_ptr = (uint8_t *)sample_addr + samplenum * 4;
 		sample_address0 = *(sample_address_ptr+0);
 		sample_address1 = *(sample_address_ptr+1);
 		sample_address2 = *(sample_address_ptr+2);
@@ -102,16 +152,16 @@ void modplay_playnote_c(unsigned char channel, unsigned char *note)
 		poke(0xd729 + ch_ofs, sample_vol[samplenum]);																		// Volume
 		poke(0xd71c + channel, sample_vol[samplenum]);																		// Mirror channel quietly on other side for nicer stereo imaging
 
-		if (sample_loopstart[samplenum])																					// XXX - We should set base addr and top addr to the looping range, if the sample has one.
+		if (sample_repeatpoint[samplenum])																					// XXX - We should set base addr and top addr to the looping range, if the sample has one.
 		{
 			// start of loop
-			poke(0xd721 + ch_ofs, (((unsigned long )sample_addr[samplenum] + 2 * sample_loopstart[samplenum]                                  ) >> 0 ) & 0xff);
-			poke(0xd722 + ch_ofs, (((unsigned long )sample_addr[samplenum] + 2 * sample_loopstart[samplenum]                                  ) >> 8 ) & 0xff);
-			poke(0xd723 + ch_ofs, (((unsigned long )sample_addr[samplenum] + 2 * sample_loopstart[samplenum]                                  ) >> 16) & 0xff);
+			poke(0xd721 + ch_ofs, (((uint32_t)sample_addr[samplenum] + 2 * sample_repeatpoint[samplenum]                                  ) >> 0 ) & 0xff);
+			poke(0xd722 + ch_ofs, (((uint32_t)sample_addr[samplenum] + 2 * sample_repeatpoint[samplenum]                                  ) >> 8 ) & 0xff);
+			poke(0xd723 + ch_ofs, (((uint32_t)sample_addr[samplenum] + 2 * sample_repeatpoint[samplenum]                                  ) >> 16) & 0xff);
 
 			// Top addr
-			poke(0xd727 + ch_ofs, (((unsigned short)sample_addr[samplenum] + 2 * (sample_loopstart[samplenum] + sample_looplen[samplenum] - 1)) >> 0 ) & 0xff);
-			poke(0xd728 + ch_ofs, (((unsigned short)sample_addr[samplenum] + 2 * (sample_loopstart[samplenum] + sample_looplen[samplenum] - 1)) >> 8 ) & 0xff);
+			poke(0xd727 + ch_ofs, (((uint16_t)sample_addr[samplenum] + 2 * (sample_repeatpoint[samplenum] + sample_repeatlength[samplenum] - 1)) >> 0 ) & 0xff);
+			poke(0xd728 + ch_ofs, (((uint16_t)sample_addr[samplenum] + 2 * (sample_repeatpoint[samplenum] + sample_repeatlength[samplenum] - 1)) >> 8 ) & 0xff);
 		}
 
 		MATH.MULTINA0 = 0xff;																								// calculate frequency // freq = 0xFFFFL / period
@@ -152,7 +202,7 @@ void modplay_playnote_c(unsigned char channel, unsigned char *note)
 		poke(0xd725 + ch_ofs, MATH.MULTOUT3);
 		poke(0xd726 + ch_ofs, 0);
 
-		if (sample_loopstart[samplenum])
+		if (sample_repeatpoint[samplenum])
 		{
 			poke(0xd720 + ch_ofs, 0xc2);																					// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
 		}
@@ -165,24 +215,29 @@ void modplay_playnote_c(unsigned char channel, unsigned char *note)
 	switch (effecthi)
 	{
 		case 0xf:																											// Speed / tempo
-			if (effectlo < 0x20)																							// speed (00-1F) / tempo (20-FF)
+			if(effectdata == 0)
 			{
-				tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
-				tempo *= 6 / (effectlo & 0x1f);
-				speed = tempo / NUMRASTERS;
-				ticks = speed;
+				done = 1;
+				break;
+			}
+			if (effectdata > 0x1f)																							// speed (00-1F) / tempo (20-FF)
+			{
+				beats_per_minute = effectdata;
+				mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
+				mod_speed = mod_tempo / NUMRASTERS;
+				ticks = mod_speed;
 			}
 			else																											// effect & 0x0ff >= 0x20
 			{
-				beats_per_minute = effectlo;
-				tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
-				speed = tempo / NUMRASTERS;
-				ticks = speed;
+				mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
+				mod_tempo *= 6 / (effectdata & 0x1f);
+				mod_speed = mod_tempo / NUMRASTERS;
+				ticks = mod_speed;
 			}
 			break;
 		case 0xc:																											// Channel volume
-			poke(0xd729 + ch_ofs, effectlo);																				// CH0VOLUME
-			poke(0xd71c + channel, effectlo);																				// CH0RVOL
+			poke(0xd729 + ch_ofs, effectdata);																				// CH0VOLUME
+			poke(0xd71c + channel, effectdata);																				// CH0RVOL
 			break;
 	}
 
@@ -192,12 +247,12 @@ void modplay_playnote_c(unsigned char channel, unsigned char *note)
 void modplay_play_c()
 {
 	// play pattern row
-	dma_lcopy(load_addr + song_offset + (current_pattern << 10) + (current_row << 4), (unsigned long)pattern_buffer, 16);
+	dma_lcopy(mod_addr + mod_song_offset + (current_pattern << 10) + (current_row << 4), (uint32_t)mod_pattern_buffer, 16);
 
-	modplay_playnote_c(0, &pattern_buffer[0 ]);
-	modplay_playnote_c(1, &pattern_buffer[4 ]);
-	modplay_playnote_c(2, &pattern_buffer[8 ]);
-	modplay_playnote_c(3, &pattern_buffer[12]);
+	modplay_playnote_c(0, &mod_pattern_buffer[0 ]);
+	modplay_playnote_c(1, &mod_pattern_buffer[4 ]);
+	modplay_playnote_c(2, &mod_pattern_buffer[8 ]);
+	modplay_playnote_c(3, &mod_pattern_buffer[12]);
 
 	current_row++;
 	
@@ -205,26 +260,25 @@ void modplay_play_c()
 	{
 		current_row = 0x00;
 		current_pattern_index++;
-		if(current_pattern_index == numpatternindices)
+		if(current_pattern_index == mod_numpatternindices)
 			current_pattern_index = 0;
-		current_pattern = song_pattern_list[current_pattern_index];
+		current_pattern = mod_patterns[current_pattern_index];
 		current_row = 0;
 	}
 }
 
-void modplay_init(unsigned long address)
+void modplay_init(uint32_t address)
 {
-	unsigned short i;
-	unsigned char a;
-	unsigned char numinstruments;
+	uint16_t i;
+	uint8_t a, numinstruments;
 
-	load_addr = address;
+	mod_addr = address;
 
-	dma_lcopy(load_addr + 1080, (unsigned long)mod_tmpbuf, 4);						// Check if 15 or 31 instrument mode (M.K.)
+	dma_lcopy(mod_addr + 1080, (uint32_t)mod_tmpbuf, 4);						// Check if 15 or 31 instrument mode (M.K.)
 
 	mod_tmpbuf[4] = 0;
 	numinstruments = 15;
-	song_offset = 1080 - (16 * 30);
+	mod_song_offset = 1080 - (16 * 30);
 
 	for(i = 0; i < NUM_SIGS; i++)
 	{
@@ -234,7 +288,7 @@ void modplay_init(unsigned long address)
 		if(a == 4)
 		{
 			numinstruments = 31;
-			song_offset = 1084;														// case for 31 instruments
+			mod_song_offset = 1084;														// case for 31 instruments
 		}
 	}
 
@@ -245,40 +299,44 @@ void modplay_init(unsigned long address)
 		// 1 byte  - volume for sample ($00-$40)
 		// 2 bytes - repeat point in words
 		// 2 bytes - repeat length in words
-		dma_lcopy(load_addr + 0x14 + i * 30 + 22, (unsigned long)mod_tmpbuf, 8);	// Get instrument data for plucking
-		sample_lengths   [i] = mod_tmpbuf[1] + (mod_tmpbuf[0] << 8);
-		sample_lengths   [i] <<= 1;													// Redenominate instrument length into bytes
-		sample_finetune  [i] = mod_tmpbuf[2];
-		sample_vol       [i] = mod_tmpbuf[3];										// Instrument volume
-		sample_loopstart [i] = mod_tmpbuf[5] + (mod_tmpbuf[4] << 8);				// Repeat start point and end point
-		sample_looplen   [i] = mod_tmpbuf[7] + (mod_tmpbuf[6] << 8);
+		dma_lcopy(mod_addr + 0x14 + i * 30 + 22, (uint32_t)mod_tmpbuf, 8);	// Get instrument data for plucking
+		sample_lengths      [i] = mod_tmpbuf[1] + (mod_tmpbuf[0] << 8);
+		sample_lengths      [i] <<= 1;													// Redenominate instrument length into bytes
+		sample_finetune     [i] = mod_tmpbuf[2];
+		sample_vol          [i] = mod_tmpbuf[3];										// Instrument volume
+		sample_repeatpoint  [i] = mod_tmpbuf[5] + (mod_tmpbuf[4] << 8);				// Repeat start point and end point
+		sample_repeatlength [i] = mod_tmpbuf[7] + (mod_tmpbuf[6] << 8);
 	}
 
-	numpatternindices = lpeek(load_addr + 20 + numinstruments*30 + 0);
-	song_loop_point = lpeek(load_addr + 20 + numinstruments*30 + 1);
+	mod_numpatternindices = lpeek(mod_addr + 20 + numinstruments*30 + 0);
+	song_loop_point = lpeek(mod_addr + 20 + numinstruments*30 + 1);
 
-	dma_lcopy(load_addr + 20 + numinstruments*30 + 2, (unsigned long)song_pattern_list, 128);
-	for(i = 0; i < numpatternindices; i++)
+	dma_lcopy(mod_addr + 20 + numinstruments*30 + 2, (uint32_t)mod_patterns, 128);
+	for(i = 0; i < mod_numpatternindices; i++)
 	{
-		if(song_pattern_list[i] > max_pattern)
-			max_pattern = song_pattern_list[i];
+		if(mod_patterns[i] > mod_numpatterns)
+			mod_numpatterns = mod_patterns[i];
 	}
 
-	sample_data_start = load_addr + song_offset + ((unsigned long)max_pattern + 1) * 1024;
+	mod_sample_data = mod_addr + mod_song_offset + ((uint32_t)mod_numpatterns + 1) * 1024;
 
 	for(i = 0; i < MAX_INSTRUMENTS; i++)
 	{
-		sample_addr[i] = sample_data_start;
-		sample_data_start += sample_lengths[i];
+		sample_addr[i] = mod_sample_data;
+		mod_sample_data += sample_lengths[i];
 	}
 
 	current_pattern_index = 0;
-	current_pattern = song_pattern_list[0];
+	current_pattern = mod_patterns[0];
 	current_row = 0;
 
-	tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
-	speed = tempo / NUMRASTERS;
+	mod_speed = 6;
+	nextspeed = 6;
+	mod_tempo = 125;
+	nexttempo = 125;
 	ticks = 1;
+
+	done = 0;
 
 	// audioxbar_setcoefficient(i, 0xff);
 	for(i = 0; i < 256; i++)
