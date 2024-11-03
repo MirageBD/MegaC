@@ -50,7 +50,7 @@ uint8_t			nexttempo;
 uint8_t			beats_per_minute			= 125;
 uint8_t			current_pattern_index		= 0;
 uint8_t			current_pattern				= 0;
-uint8_t			current_row					= 0;
+uint8_t			row							= 0;
 uint8_t			song_loop_point;			// unused
 uint16_t		top_addr;
 
@@ -110,7 +110,7 @@ uint8_t			sample_address3;
 
 // -----------------------------------------------------------
 
-uint8_t			ticks;
+uint8_t			globaltick;
 
 // ------------------------------------------------------------------------------------
 
@@ -225,14 +225,12 @@ void modplay_playnote_c(uint8_t channel, uint8_t *note)
 				beats_per_minute = effectdata;
 				mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
 				mod_speed = mod_tempo / NUMRASTERS;
-				ticks = mod_speed;
 			}
 			else																											// effect & 0x0ff >= 0x20
 			{
 				mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
 				mod_tempo *= 6 / (effectdata & 0x1f);
 				mod_speed = mod_tempo / NUMRASTERS;
-				ticks = mod_speed;
 			}
 			break;
 		case 0xc:																											// Channel volume
@@ -244,26 +242,31 @@ void modplay_playnote_c(uint8_t channel, uint8_t *note)
 	poke(0xd711, 0b10010000);																								// Enable audio dma, enable bypass of audio mixer
 }
 
-void modplay_play_c()
+void steptick()
 {
+	globaltick++;
+
+	if(globaltick != mod_speed)
+		return;
+
+	globaltick = 0;
+
 	// play pattern row
-	dma_lcopy(mod_addr + mod_song_offset + (current_pattern << 10) + (current_row << 4), (uint32_t)mod_pattern_buffer, 16);
+	dma_lcopy(mod_addr + mod_song_offset + (current_pattern << 10) + (row << 4), (uint32_t)mod_pattern_buffer, 16);
 
 	modplay_playnote_c(0, &mod_pattern_buffer[0 ]);
 	modplay_playnote_c(1, &mod_pattern_buffer[4 ]);
 	modplay_playnote_c(2, &mod_pattern_buffer[8 ]);
 	modplay_playnote_c(3, &mod_pattern_buffer[12]);
 
-	current_row++;
-	
-	if(current_row > 0x3f)
+	row++;
+	if(row > 0x3f)
 	{
-		current_row = 0x00;
+		row = 0;
 		current_pattern_index++;
 		if(current_pattern_index == mod_numpatternindices)
 			current_pattern_index = 0;
 		current_pattern = mod_patterns[current_pattern_index];
-		current_row = 0;
 	}
 }
 
@@ -328,13 +331,13 @@ void modplay_init(uint32_t address)
 
 	current_pattern_index = 0;
 	current_pattern = mod_patterns[0];
-	current_row = 0;
+	row = 0;
 
 	mod_speed = 6;
 	nextspeed = 6;
 	mod_tempo = 125;
 	nexttempo = 125;
-	ticks = 1;
+	globaltick = 0;
 
 	done = 0;
 

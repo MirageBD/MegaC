@@ -18,7 +18,7 @@ typedef struct
 	sample*		sample;
 	int8_t		volume;
 	int8_t		tempvolume;
-	uint32_t	index;			// used in 'retrigger note + x vblanks (ticks)', depends on offset
+	uint32_t	index;			// used in 'retrigger note + x vblanks (ticks)', depends on offset in this struct
 	bool		repeat;
 	bool		stop;
 	uint8_t		deltick;
@@ -57,8 +57,6 @@ int16_t		square	[64];
 
 off_t		filelength;
 bool		loop;
-float*		audiobuf;
-float*		mixbuf;
 
 int			curpattern;
 uint8_t*	currowdata;						// 4 channels * 4 bytes = 16 bytes. copy using DMA
@@ -140,8 +138,6 @@ channel* initsound()
 	precalculatetables();
 
 	channel* channels	= malloc(                     4 * sizeof(channel));
-	mixbuf				= malloc(0.08 * 2 * SAMPLE_RATE * sizeof(float  ));
-	audiobuf			= malloc(0.08 * 2 * SAMPLE_RATE * sizeof(float  ));
 
 	row			= 0;
 	currow		= 0;
@@ -344,6 +340,7 @@ void processnoteeffects(channel* c, uint8_t* data)
 				nextticktime = 1 / (0.4f * effectdata);
 			}
 			else nextspeed = effectdata;
+			
 			break;
 
 		default:
@@ -783,7 +780,7 @@ void modparse(FILE* f)
 	
 	mod_speed    =    6; // default speed = 6
 	nextspeed    =    6;
-	mod_tempo     =  125;
+	mod_tempo    =  125;
 	nexttempo    =  125;
 	ticktime     = 0.02;
 	nextticktime = 0.02;
