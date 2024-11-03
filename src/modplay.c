@@ -290,9 +290,9 @@ void processnoteeffects(uint8_t channel, uint8_t* data)
 			}
 			else																											// effect & 0x0ff >= 0x20
 			{
-				// mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
+				mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
 				// // mod_tempo *= 6 / (effectdata & 0x1f);
-				// mod_speed = mod_tempo / NUMRASTERS;
+				mod_speed = (effectdata & 0x1f);
 			}
 			break;
 	}
@@ -317,7 +317,7 @@ void processnote(uint8_t channel, uint8_t *data)
 
 	if(globaltick == channel_deltick[channel]) // 0 if no note delay
 	{
-		if(period || tempsam)
+		if((period || tempsam) && !inrepeat)
 		{
 			triggersample = 1;
 
@@ -486,6 +486,21 @@ void processnote(uint8_t channel, uint8_t *data)
 		processnoteeffects(channel, data);
 	}
 
+	if(channel_volume[channel] < 0)
+		channel_volume[channel] = 0;
+	else if(channel_volume[channel] > 63)
+		channel_volume[channel] = 63;
+
+	if(channel_tempvolume[channel] < 0)
+		channel_tempvolume[channel] = 0;
+	else if(channel_tempvolume[channel] > 63)
+		channel_tempvolume[channel] = 63;
+	
+	if(channel_tempperiod[channel] > 856)
+		channel_tempperiod[channel] = 856;
+	else if(channel_tempperiod[channel] < 113)
+		channel_tempperiod[channel] = 113;
+
 	// SET FREQUENCY
 
 	MATH.MULTINA0 = 0xff;																								// calculate frequency // freq = 0xFFFFL / period
@@ -631,7 +646,21 @@ void steptick()
 	globaltick++;
 	if(globaltick == mod_speed)
 	{
-		row++;
+		if(delcount)
+		{
+			inrepeat = 1;
+			delcount--;
+		}
+		else
+		{
+			delset   = 0;
+			addflag  = 0;
+			inrepeat = 0;
+
+			if(currow == row)
+				row++;
+		}
+
 		globaltick = 0;
 	}
 }
