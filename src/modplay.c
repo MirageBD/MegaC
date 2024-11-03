@@ -172,6 +172,7 @@ void processnoteeffects(uint8_t channel, uint8_t* data)
 			break;
 
 		case 0x01: // slide up
+			// while(1) {}
 			channel_period[channel] -= effectdata;
 			channel_tempperiod[channel] = channel_period[channel];
 			break;
@@ -299,9 +300,6 @@ void processnoteeffects(uint8_t channel, uint8_t* data)
 
 void processnote(uint8_t channel, uint8_t *data)
 {
-	if(globaltick != 0)
-		return;
-
 	uint8_t tempsam = ((((*data)) & 0xf0) | ((*(data + 2) >> 4) & 0x0f));
 
 	uint16_t period = (((uint16_t)((*data) & 0x0f)) << 8) | (uint16_t)(*(data + 1));
@@ -315,10 +313,13 @@ void processnote(uint8_t channel, uint8_t *data)
 
 	uint8_t ch_ofs = channel << 4;
 
+	uint8_t triggersample = 0; // NOT IN ORIGINAL SOURCE - FIND BETTER WAY OF HANDLING THIS!!!
+
 	if(globaltick == channel_deltick[channel]) // 0 if no note delay
 	{
 		if(period || tempsam)
 		{
+				triggersample = 1;
 			if(tempsam)
 			{
 				channel_stop[channel] = 0;
@@ -475,21 +476,72 @@ void processnote(uint8_t channel, uint8_t *data)
 			default:
 				break;
 		}
+
+		if(channel_tempperiod[channel] == 0 /* || c->sample[channel] == NULL || c->sample->length == 0 */)
+			channel_stop[channel] = 1;
 	}
 	else if(channel_deltick[channel] == 0)
 	{
 		processnoteeffects(channel, data);
 	}
 
-	if(period || tempsam)
+	// SET FREQUENCY
+
+	MATH.MULTINA0 = 0xff;																								// calculate frequency // freq = 0xFFFFL / period
+	MATH.MULTINA1 = 0xff;
+	MATH.MULTINA2 = 0;
+	MATH.MULTINA3 = 0;
+
+	MATH.MULTINB0 = (channel_period[channel] >> 0) & 0xff;
+	MATH.MULTINB1 = (channel_period[channel] >> 8) & 0xff;
+	MATH.MULTINB2 = 0;
+	MATH.MULTINB3 = 0;
+
+	__asm(
+		" lda 0xd020\n"
+		" sta 0xd020\n"
+		" lda 0xd020\n"
+		" sta 0xd020\n"
+		" lda 0xd020\n"
+		" sta 0xd020\n"
+		" lda 0xd020\n"
+		" sta 0xd020"
+	);
+
+	freqlo = MATH.DIVOUTFRACT0;
+	freqhi = MATH.DIVOUTFRACT1;
+
+	MATH.MULTINA0 = sample_rate_divisor >> 0;
+	MATH.MULTINA1 = sample_rate_divisor >> 8;
+	MATH.MULTINA2 = sample_rate_divisor >> 16;
+	MATH.MULTINA3 = 0;
+
+	MATH.MULTINB0 = freqlo;
+	MATH.MULTINB1 = freqhi;
+	MATH.MULTINB2 = 0;
+	MATH.MULTINB3 = 0;
+
+	poke(0xd724 + ch_ofs, MATH.MULTOUT2);																				// Pick results from output / 2^16
+	poke(0xd725 + ch_ofs, MATH.MULTOUT3);
+	poke(0xd726 + ch_ofs, 0);
+
+	// SET VOLUME
+
+	poke(0xd729 + ch_ofs,  channel_volume[channel]);																			// CH0VOLUME
+	poke(0xd71c + channel, channel_volume[channel]);																			// CH0RVOL
+
+	// TRIGGER SAMPLE
+
+	if(globaltick == 0 && triggersample == 1)
 	{
 		poke(0xd720 + ch_ofs, 0x00);																						// Stop playback while loading new sample data
 
-		sample_address_ptr = (uint8_t *)sample_addr + tempsam * 4;
-		sample_address0 = *(sample_address_ptr+0);
-		sample_address1 = *(sample_address_ptr+1);
-		sample_address2 = *(sample_address_ptr+2);
-		sample_address3 = *(sample_address_ptr+3);
+		uint32_t sample_adr = sample_addr[tempsam] + channel_offset[channel];
+
+		sample_address0 = (sample_adr >>  0) & 0xff;
+		sample_address1 = (sample_adr >>  8) & 0xff;
+		sample_address2 = (sample_adr >> 16) & 0xff;
+		sample_address3 = (sample_adr >> 24) & 0xff;
 
 		poke(0xd721 + ch_ofs, sample_address0);																				// Load sample address into base and current addr
 		poke(0xd722 + ch_ofs, sample_address1);
@@ -501,9 +553,6 @@ void processnote(uint8_t channel, uint8_t *data)
 		top_addr = sample_addr[tempsam] + sample_lengths[tempsam];															// Sample top address
 		poke(0xd727 + ch_ofs, (top_addr >> 0) & 0xff);
 		poke(0xd728 + ch_ofs, (top_addr >> 8) & 0xff);
-
-		poke(0xd729 + ch_ofs, channel_volume[channel]);																		// Volume
-		poke(0xd71c + channel, channel_volume[channel]);																	// Mirror channel quietly on other side for nicer stereo imaging
 
 		if(sample_repeatpoint[tempsam])																						// XXX - We should set base addr and top addr to the looping range, if the sample has one.
 		{
@@ -517,44 +566,6 @@ void processnote(uint8_t channel, uint8_t *data)
 			poke(0xd728 + ch_ofs, (((uint16_t)sample_addr[tempsam] + 2 * (sample_repeatpoint[tempsam] + sample_repeatlength[tempsam] - 1)) >> 8 ) & 0xff);
 		}
 
-		MATH.MULTINA0 = 0xff;																								// calculate frequency // freq = 0xFFFFL / period
-		MATH.MULTINA1 = 0xff;
-		MATH.MULTINA2 = 0;
-		MATH.MULTINA3 = 0;
-
-		MATH.MULTINB0 = period & 0xff;
-		MATH.MULTINB1 = period >> 8;
-		MATH.MULTINB2 = 0;
-		MATH.MULTINB3 = 0;
-
-		__asm(
-			" lda 0xd020\n"
-			" sta 0xd020\n"
-			" lda 0xd020\n"
-			" sta 0xd020\n"
-			" lda 0xd020\n"
-			" sta 0xd020\n"
-			" lda 0xd020\n"
-			" sta 0xd020"
-		);
-
-		freqlo = MATH.DIVOUTFRACT0;
-		freqhi = MATH.DIVOUTFRACT1;
-
-		MATH.MULTINA0 = sample_rate_divisor >> 0;
-		MATH.MULTINA1 = sample_rate_divisor >> 8;
-		MATH.MULTINA2 = sample_rate_divisor >> 16;
-		MATH.MULTINA3 = 0;
-
-		MATH.MULTINB0 = freqlo;
-		MATH.MULTINB1 = freqhi;
-		MATH.MULTINB2 = 0;
-		MATH.MULTINB3 = 0;
-
-		poke(0xd724 + ch_ofs, MATH.MULTOUT2);																				// Pick results from output / 2^16
-		poke(0xd725 + ch_ofs, MATH.MULTOUT3);
-		poke(0xd726 + ch_ofs, 0);
-
 		if (sample_repeatpoint[tempsam])
 		{
 			poke(0xd720 + ch_ofs, 0xc2);																					// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
@@ -563,12 +574,9 @@ void processnote(uint8_t channel, uint8_t *data)
 		{
 			poke(0xd720 + ch_ofs, 0x82);																					// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
 		}
+
+		poke(0xd711, 0b10010000);																									// Enable audio dma, enable bypass of audio mixer
 	}
-
-	poke(0xd729 + ch_ofs,  channel_volume[channel]);																			// CH0VOLUME
-	poke(0xd71c + channel, channel_volume[channel]);																			// CH0RVOL
-
-	poke(0xd711, 0b10010000);																									// Enable audio dma, enable bypass of audio mixer
 }
 
 void steptick()
@@ -706,6 +714,37 @@ void modplay_init(uint32_t address)
 	nexttempo = 125;
 
 	done = 0;
+
+	for(i = 0; i < 4; i++)
+	{
+		channel_volume				[i] = 0;
+		channel_tempvolume			[i] = 0;
+		channel_deltick				[i] = 0;
+		channel_stop				[i] = 1;
+		channel_repeat				[i] = 0;
+		channel_period				[i] = 0;
+		channel_portdest			[i] = 0;
+		channel_tempperiod			[i] = 0;
+		channel_portstep			[i] = 0;
+		channel_offset				[i] = 0;
+		channel_offsetmem			[i] = 0;
+		channel_retrig				[i] = 0;
+		channel_vibwave				[i] = 0;
+		channel_tremwave			[i] = 0;
+		channel_vibpos				[i] = 0;
+		channel_trempos				[i] = 0;
+		channel_looppoint			[i] = 0;
+		channel_loopcount			[i] = -1;
+		channel_sample				[i] = 0;
+
+		// channel_index			[i] = 0;
+		// channel_arp[3]			[i] = 0;
+		// channel_cut				[i] = 0;
+		// channel_vibspeed			[i] = 0;
+		// channel_vibdepth			[i] = 0;
+		// channel_tremspeed		[i] = 0;
+		// channel_tremdepth		[i] = 0;
+	}
 
 	// audioxbar_setcoefficient(i, 0xff);
 	for(i = 0; i < 256; i++)
