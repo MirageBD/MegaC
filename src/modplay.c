@@ -191,6 +191,7 @@ void processnoteeffects(uint8_t channel, uint8_t* data)
 			// no break, exploit fallthrough
 
 		case 0x03: // tone portamento
+			// TODO - fix ABS
 			/*
 			if(abs(channel_portdest[channel] - channel_period[channel]) < channel_portstep[channel])
 				channel_period[channel] = channel_portdest[channel];
@@ -282,13 +283,13 @@ void processnoteeffects(uint8_t channel, uint8_t* data)
 				done = 1;
 				break;
 			}
-			if (effectdata > 0x1f)																							// speed (00-1F) / tempo (20-FF)
+			if (effectdata > 0x1f) // speed (00-1F) / tempo (20-FF)
 			{
 				beats_per_minute = effectdata;
 				mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
 				mod_speed = mod_tempo / NUMRASTERS;
 			}
-			else																											// effect & 0x0ff >= 0x20
+			else // effect & 0x0ff >= 0x20
 			{
 				mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
 				// // mod_tempo *= 6 / (effectdata & 0x1f);
@@ -486,24 +487,24 @@ void processnote(uint8_t channel, uint8_t *data)
 		processnoteeffects(channel, data);
 	}
 
-	if(channel_volume[channel] < 0)
-		channel_volume[channel] = 0;
-	else if(channel_volume[channel] > 63)
-		channel_volume[channel] = 63;
+	if     (channel_volume[channel] < 0)		channel_volume[channel] = 0;
+	else if(channel_volume[channel] > 63)		channel_volume[channel] = 63;
 
-	if(channel_tempvolume[channel] < 0)
-		channel_tempvolume[channel] = 0;
-	else if(channel_tempvolume[channel] > 63)
-		channel_tempvolume[channel] = 63;
+	if     (channel_tempvolume[channel] < 0)	channel_tempvolume[channel] = 0;
+	else if(channel_tempvolume[channel] > 63)	channel_tempvolume[channel] = 63;
 	
-	if(channel_tempperiod[channel] > 856)
-		channel_tempperiod[channel] = 856;
-	else if(channel_tempperiod[channel] < 113)
-		channel_tempperiod[channel] = 113;
+	if     (channel_tempperiod[channel] > 856)	channel_tempperiod[channel] = 856;
+	else if(channel_tempperiod[channel] < 113)	channel_tempperiod[channel] = 113;
+
+	if(globaltick == mod_speed - 1)
+	{
+		channel_tempperiod[channel] = channel_period[channel];
+		channel_deltick[channel] = 0;
+	}
 
 	// SET FREQUENCY
 
-	MATH.MULTINA0 = 0xff;																								// calculate frequency // freq = 0xFFFFL / period
+	MATH.MULTINA0 = 0xff;																// calculate frequency // freq = 0xFFFFL / period
 	MATH.MULTINA1 = 0xff;
 	MATH.MULTINA2 = 0;
 	MATH.MULTINA3 = 0;
@@ -537,40 +538,48 @@ void processnote(uint8_t channel, uint8_t *data)
 	MATH.MULTINB2 = 0;
 	MATH.MULTINB3 = 0;
 
-	poke(0xd724 + ch_ofs, MATH.MULTOUT2);																				// Pick results from output / 2^16
+	poke(0xd724 + ch_ofs, MATH.MULTOUT2);												// Pick results from output / 2^16
 	poke(0xd725 + ch_ofs, MATH.MULTOUT3);
 	poke(0xd726 + ch_ofs, 0);
 
 	// SET VOLUME
 
-	poke(0xd729 + ch_ofs,  channel_volume[channel]);																			// CH0VOLUME
-	poke(0xd71c + channel, channel_volume[channel]);																			// CH0RVOL
+	if(channel_stop[channel])
+	{
+		poke(0xd729 + ch_ofs,  0);														// CH0VOLUME
+		poke(0xd71c + channel, 0);														// CH0RVOL
+	}
+	else
+	{
+		poke(0xd729 + ch_ofs,  channel_volume[channel]);								// CH0VOLUME
+		poke(0xd71c + channel, channel_volume[channel]);								// CH0RVOL
+	}
 
 	// TRIGGER SAMPLE
 
-	if(globaltick == 0 && triggersample == 1)
+	if(globaltick == 0 && triggersample == 1 && !channel_stop[channel])
 	{
-		poke(0xd720 + ch_ofs, 0x00);																						// Stop playback while loading new sample data
+		poke(0xd720 + ch_ofs, 0x00);													// Stop playback while loading new sample data
 
-		uint32_t sample_adr = sample_addr[tempsam] + channel_offset[channel];
+		uint32_t sample_adr = sample_addr[channel_sample[channel]] + channel_offset[channel];
 
 		sample_address0 = (sample_adr >>  0) & 0xff;
 		sample_address1 = (sample_adr >>  8) & 0xff;
 		sample_address2 = (sample_adr >> 16) & 0xff;
 		sample_address3 = (sample_adr >> 24) & 0xff;
 
-		poke(0xd721 + ch_ofs, sample_address0);																				// Load sample address into base and current addr
+		poke(0xd721 + ch_ofs, sample_address0);											// Load sample address into base and current addr
 		poke(0xd722 + ch_ofs, sample_address1);
 		poke(0xd723 + ch_ofs, sample_address2);
 		poke(0xd72a + ch_ofs, sample_address0);
 		poke(0xd72b + ch_ofs, sample_address1);
 		poke(0xd72c + ch_ofs, sample_address2);
 
-		top_addr = sample_addr[tempsam] + sample_lengths[tempsam];															// Sample top address
+		top_addr = sample_addr[tempsam] + sample_lengths[tempsam];						// Sample top address
 		poke(0xd727 + ch_ofs, (top_addr >> 0) & 0xff);
 		poke(0xd728 + ch_ofs, (top_addr >> 8) & 0xff);
 
-		if(sample_repeatpoint[tempsam])																						// XXX - We should set base addr and top addr to the looping range, if the sample has one.
+		if(sample_repeatpoint[tempsam])													// Set base addr and top addr to the looping range, if the sample has one.
 		{
 			// start of loop
 			poke(0xd721 + ch_ofs, (((uint32_t)sample_addr[tempsam] + 2 * sample_repeatpoint[tempsam]                                  ) >> 0 ) & 0xff);
@@ -583,15 +592,11 @@ void processnote(uint8_t channel, uint8_t *data)
 		}
 
 		if (sample_repeatpoint[tempsam])
-		{
-			poke(0xd720 + ch_ofs, 0xc2);																					// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
-		}
+			poke(0xd720 + ch_ofs, 0xc2);												// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
 		else
-		{
-			poke(0xd720 + ch_ofs, 0x82);																					// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
-		}
+			poke(0xd720 + ch_ofs, 0x82);												// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
 
-		poke(0xd711, 0b10010000);																									// Enable audio dma, enable bypass of audio mixer
+		poke(0xd711, 0b10010000);														// Enable audio dma, enable bypass of audio mixer
 	}
 }
 
