@@ -40,6 +40,8 @@ int8_t mod31_sigs[NUM_SIGS][4] =
 	{ 0x46, 0x4c, 0x54, 0x38 }  // FLT8
 };
 
+uint8_t enabled_channels[4] = { 1, 1, 1, 1 };
+
 uint16_t periods[] =
 {
 	856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480, 453,
@@ -559,6 +561,9 @@ void processnote(uint8_t channel, uint8_t *data)
 
 	if(globaltick == 0 && triggersample == 1 && !channel_stop[channel])
 	{
+		if(enabled_channels[channel] == 0)
+			return;
+
 		poke(0xd720 + ch_ofs, 0x00);													// Stop playback while loading new sample data
 
 		uint32_t sample_adr = sample_addr[channel_sample[channel]] + channel_offset[channel];
