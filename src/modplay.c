@@ -203,9 +203,7 @@ void processnoteeffects(uint8_t channel, uint8_t* data)
 	{
 		case 0x00: // normal / arpeggio
 			if(effectdata)
-			{
 				channel_tempperiod[channel] = channel_arp[arpeggiocounter % 3][channel];
-			}
 			break;
 
 		case 0x01: // slide up
@@ -524,10 +522,10 @@ void processnote(uint8_t channel, uint8_t *data)
 	{
 		if((period || tempsam) && !inrepeat)
 		{
+			triggersample = 1;
+
 			if(tempsam)
 			{
-				triggersample = 1;
-
 				channel_stop[channel] = 0;
 				tempsam--;
 				if(tempeffect != 0x03 && tempeffect != 0x05)
@@ -639,6 +637,8 @@ void processnote(uint8_t channel, uint8_t *data)
 
 	// TRIGGER SAMPLE
 
+	uint8_t zozwaar = channel_sample[channel];
+
 	if(globaltick == 0 && triggersample == 1 && !channel_stop[channel])
 	{
 		if(enabled_channels[channel] == 0)
@@ -646,7 +646,7 @@ void processnote(uint8_t channel, uint8_t *data)
 
 		poke(0xd720 + ch_ofs, 0x00);													// Stop playback while loading new sample data
 
-		uint32_t sample_adr = sample_addr[channel_sample[channel]] + channel_offset[channel];
+		uint32_t sample_adr = sample_addr[zozwaar] + channel_offset[channel];
 
 		sample_address0 = (sample_adr >>  0) & 0xff;
 		sample_address1 = (sample_adr >>  8) & 0xff;
@@ -660,23 +660,23 @@ void processnote(uint8_t channel, uint8_t *data)
 		poke(0xd72b + ch_ofs, sample_address1);
 		poke(0xd72c + ch_ofs, sample_address2);
 
-		top_addr = sample_addr[tempsam] + sample_lengths[tempsam];						// Sample top address
+		top_addr = sample_addr[zozwaar] + sample_lengths[zozwaar];						// Sample top address
 		poke(0xd727 + ch_ofs, (top_addr >> 0) & 0xff);
 		poke(0xd728 + ch_ofs, (top_addr >> 8) & 0xff);
 
-		if(sample_repeatpoint[tempsam])													// Set base addr and top addr to the looping range, if the sample has one.
+		if(sample_repeatpoint[zozwaar])													// Set base addr and top addr to the looping range, if the sample has one.
 		{
 			// start of loop
-			poke(0xd721 + ch_ofs, (((uint32_t)sample_addr[tempsam] + 2 * sample_repeatpoint[tempsam]                                  ) >> 0 ) & 0xff);
-			poke(0xd722 + ch_ofs, (((uint32_t)sample_addr[tempsam] + 2 * sample_repeatpoint[tempsam]                                  ) >> 8 ) & 0xff);
-			poke(0xd723 + ch_ofs, (((uint32_t)sample_addr[tempsam] + 2 * sample_repeatpoint[tempsam]                                  ) >> 16) & 0xff);
+			poke(0xd721 + ch_ofs, (((uint32_t)sample_addr[zozwaar] + 2 * sample_repeatpoint[zozwaar]                                  ) >> 0 ) & 0xff);
+			poke(0xd722 + ch_ofs, (((uint32_t)sample_addr[zozwaar] + 2 * sample_repeatpoint[zozwaar]                                  ) >> 8 ) & 0xff);
+			poke(0xd723 + ch_ofs, (((uint32_t)sample_addr[zozwaar] + 2 * sample_repeatpoint[zozwaar]                                  ) >> 16) & 0xff);
 
 			// Top addr
-			poke(0xd727 + ch_ofs, (((uint16_t)sample_addr[tempsam] + 2 * (sample_repeatpoint[tempsam] + sample_repeatlength[tempsam] - 1)) >> 0 ) & 0xff);
-			poke(0xd728 + ch_ofs, (((uint16_t)sample_addr[tempsam] + 2 * (sample_repeatpoint[tempsam] + sample_repeatlength[tempsam] - 1)) >> 8 ) & 0xff);
+			poke(0xd727 + ch_ofs, (((uint16_t)sample_addr[zozwaar] + 2 * (sample_repeatpoint[zozwaar] + sample_repeatlength[zozwaar] - 1)) >> 0 ) & 0xff);
+			poke(0xd728 + ch_ofs, (((uint16_t)sample_addr[zozwaar] + 2 * (sample_repeatpoint[zozwaar] + sample_repeatlength[zozwaar] - 1)) >> 8 ) & 0xff);
 		}
 
-		if (sample_repeatpoint[tempsam])
+		if (sample_repeatpoint[zozwaar])
 			poke(0xd720 + ch_ofs, 0xc2);												// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
 		else
 			poke(0xd720 + ch_ofs, 0x82);												// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
