@@ -9,6 +9,11 @@ irq_fastload:
 
 			inc 0xd020
 
+			clc
+			lda 0xd012
+			adc #20
+			sta 0xd012
+
 			ply
 			plx
 			pla

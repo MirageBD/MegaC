@@ -204,7 +204,6 @@ void processnoteeffects(uint8_t channel, uint8_t* data)
 		case 0x00: // normal / arpeggio
 			if(effectdata)
 			{
-				arpeggiocounter++;
 				channel_tempperiod[channel] = channel_arp[arpeggiocounter % 3][channel];
 			}
 			break;
@@ -355,6 +354,8 @@ void processplaynoteffects(uint8_t channel, uint8_t tempeffect, uint8_t effectda
 					channel_arp[2][channel] = channel_period[channel];
 					break;
 				}
+
+				arpeggiocounter = 0;
 
 				uint8_t step1 = base + ((effectdata >> 4) & 0x0f);
 				uint8_t step2 = base + ((effectdata     ) & 0x0f);
@@ -686,6 +687,8 @@ void processnote(uint8_t channel, uint8_t *data)
 
 void steptick()
 {
+	arpeggiocounter++;
+
 	if(row == 64)
 	{
 		row = 0;
