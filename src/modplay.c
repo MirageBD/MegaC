@@ -201,23 +201,19 @@ void processnoteeffects(uint8_t channel, uint8_t* data)
 			// no break, exploit fallthrough
 
 		case 0x03: // tone portamento
-			// TODO - fix ABS
-			if(((channel_portdest[channel] - channel_period[channel]) & 0x7FFF) < channel_portstep[channel])
-				channel_period[channel] = channel_portdest[channel];
-			else if(channel_portdest[channel] > channel_period[channel])
+			if(channel_portdest[channel] > channel_period[channel])
+			{
 				channel_period[channel] += channel_portstep[channel];
-			else
+				if(channel_period[channel] > channel_portdest[channel])
+					channel_period[channel] = channel_portdest[channel];
+			}
+			else if(channel_portdest[channel] < channel_period[channel])
+			{
 				channel_period[channel] -= channel_portstep[channel];
+				if(channel_period[channel] < channel_portdest[channel])
+					channel_period[channel] = channel_portdest[channel];
+			}
 			channel_tempperiod[channel] = channel_period[channel];
-			/*
-			if(abs(channel_portdest[channel] - channel_period[channel]) < channel_portstep[channel])
-				channel_period[channel] = channel_portdest[channel];
-			else if(channel_portdest[channel] > channel_period[channel])
-				channel_period[channel] += channel_portstep[channel];
-			else
-				channel_period[channel] -= channel_portstep[channel];
-			channel_tempperiod[channel] = channel_period[channel];
-			*/
 			break;
 
 		case 0x06: // vibrato + volume slide
@@ -300,17 +296,16 @@ void processnoteeffects(uint8_t channel, uint8_t* data)
 				done = 1;
 				break;
 			}
-			if (effectdata > 0x1f) // speed (00-1F) / tempo (20-FF)
+			if (effectdata < 0x20) // speed (00-1F) / ticks per row (normally 6)
 			{
-				beats_per_minute = effectdata;
-				mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
-				mod_speed = mod_tempo / NUMRASTERS;
-			}
-			else // effect & 0x0ff >= 0x20
-			{
-				mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
-				// // mod_tempo *= 6 / (effectdata & 0x1f);
 				mod_speed = (effectdata & 0x1f);
+			}
+			else // tempo (20-FF)
+			{
+				//beats_per_minute = effectdata;
+				// // mod_tempo *= 6 / (effectdata & 0x1f);
+				//mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
+				//mod_speed = mod_tempo / NUMRASTERS;
 			}
 			break;
 	}
