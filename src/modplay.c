@@ -97,6 +97,8 @@ uint8_t			curpattern;
 uint8_t			song_loop_point;			// unused
 uint16_t		top_addr;
 
+uint8_t			arpeggiocounter;
+
 // SAMPLE DATA FOR ALL INSTRUMENTS ---------------------------
 
 uint16_t		sample_lengths				[MAX_INSTRUMENTS];
@@ -148,6 +150,29 @@ uint8_t			sample_address3;
 
 // ------------------------------------------------------------------------------------
 
+int8_t findperiod(uint16_t period)
+{
+	if(period > 856 || period < 113)
+		return -1;
+
+	uint8_t upper = 35;
+	uint8_t lower = 0;
+	uint8_t mid;
+
+	while(upper >= lower)
+	{
+		mid = (upper + lower) / 2;
+		if(periods[mid] == period)
+			return mid;
+		else if(periods[mid] > period)
+			lower = mid + 1;
+		else
+			upper = mid - 1;
+	}
+
+	return -1;
+}
+
 void preprocesseffects(uint8_t* data)
 {
 	if ((*(data+2) & 0x0f) == 0x0f) // set speed / tempo
@@ -178,11 +203,13 @@ void processnoteeffects(uint8_t channel, uint8_t* data)
 	{
 		case 0x00: // normal / arpeggio
 			if(effectdata)
-				channel_tempperiod[channel] = channel_arp[globaltick % 3][channel];
+			{
+				arpeggiocounter++;
+				channel_tempperiod[channel] = channel_arp[arpeggiocounter % 3][channel];
+			}
 			break;
 
 		case 0x01: // slide up
-			// while(1) {}
 			channel_period[channel] -= effectdata;
 			channel_tempperiod[channel] = channel_period[channel];
 			break;
@@ -318,7 +345,44 @@ void processplaynoteffects(uint8_t channel, uint8_t tempeffect, uint8_t effectda
 		case 0x00: // Normal play or Arpeggio
 			if(effectdata)
 			{
+				channel_period[channel] = channel_portdest[channel];
+				int8_t base = findperiod(channel_period[channel]);
+
+				if(base == -1)
+				{
+					channel_arp[0][channel] = channel_period[channel];
+					channel_arp[1][channel] = channel_period[channel];
+					channel_arp[2][channel] = channel_period[channel];
+					break;
+				}
+
+				uint8_t step1 = base + ((effectdata >> 4) & 0x0f);
+				uint8_t step2 = base + ((effectdata     ) & 0x0f);
+
+				channel_arp[0][channel] = channel_period[channel];
+
+				if(step1 > 35)
+				{
+					if(step1 == 36)
+						channel_arp[1][channel] = 0;
+					else
+						channel_arp[1][channel] = periods[(step1 - 1) % 36];
+				}
+				else
+				{
+					channel_arp[1][channel] = periods[step1];
+				}
+
+				if(step2 > 35)
+				{
+					if(step2 == 36)
+						channel_arp[2][channel] = 0;
+					else
+						channel_arp[2][channel] = periods[(step2 - 1) % 36];
+				}
+				else channel_arp[2][channel] = periods[step2];
 			}
+
 			break;
 
 		case 0x03: // Tone Portamento
@@ -526,8 +590,8 @@ void processnote(uint8_t channel, uint8_t *data)
 	MATH.MULTINA2 = 0;
 	MATH.MULTINA3 = 0;
 
-	MATH.MULTINB0 = (channel_period[channel] >> 0) & 0xff;
-	MATH.MULTINB1 = (channel_period[channel] >> 8) & 0xff;
+	MATH.MULTINB0 = (channel_tempperiod[channel] >> 0) & 0xff;
+	MATH.MULTINB1 = (channel_tempperiod[channel] >> 8) & 0xff;
 	MATH.MULTINB2 = 0;
 	MATH.MULTINB3 = 0;
 
@@ -568,8 +632,8 @@ void processnote(uint8_t channel, uint8_t *data)
 	}
 	else
 	{
-		poke(0xd729 + ch_ofs,  channel_volume[channel]);								// CH0VOLUME
-		poke(0xd71c + channel, channel_volume[channel]);								// CH0RVOL
+		poke(0xd729 + ch_ofs,  channel_tempvolume[channel]);							// CH0VOLUME
+		poke(0xd71c + channel, channel_tempvolume[channel]);							// CH0RVOL
 	}
 
 	// TRIGGER SAMPLE
