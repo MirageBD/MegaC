@@ -434,9 +434,9 @@ void processnote(uint8_t channel, uint8_t *data)
 
 			case 0x05: // tone portamento + volume slide
 				if(effectdata & 0xf0)
-					channel_volume[channel] += ((effectdata >> 4) & 0x0f); //slide up
+					channel_volume[channel] += ((effectdata >> 4) & 0x0f); // slide up
 				else
-					channel_volume[channel] -= effectdata; //slide down
+					channel_volume[channel] -= effectdata; // slide down
 				channel_tempvolume[channel] = channel_volume[channel];
 				// no break, exploit fallthrough
 
@@ -480,7 +480,7 @@ void processnote(uint8_t channel, uint8_t *data)
 				if(effectdata & 0xf0)
 					channel_volume[channel] += ((effectdata>>4) & 0x0f); // slide up
 				else
-					channel_volume[channel] -= effectdata; //slide down
+					channel_volume[channel] -= effectdata; // slide down
 				channel_tempvolume[channel] = channel_volume[channel];
 				break;
 
@@ -511,7 +511,7 @@ void processnote(uint8_t channel, uint8_t *data)
 						channel_tremwave[channel] = effectdata & 0x0f;
 						break;
 
-					// There's no effect 0xE8
+					// No effect 0x0E80
 
 					case 0x90: // retrigger note + x vblanks (ticks)
 						if(((effectdata & 0x0f) == 0) || (globaltick % (effectdata & 0x0f)) == 0)
@@ -782,7 +782,7 @@ void modplay_init(uint32_t address)
 	mod_songlength = lpeek(mod_addr + 20 + numinstruments*30 + 0);
 	song_loop_point = lpeek(mod_addr + 20 + numinstruments*30 + 1);
 
-	dma_lcopy(mod_addr + 20 + numinstruments*30 + 2, (uint32_t)mod_patternlist, 128);
+	dma_lcopy(mod_addr + 20 + numinstruments * 30 + 2, (uint32_t)mod_patternlist, 128);
 	for(i = 0; i < mod_songlength; i++)
 	{
 		if(mod_patternlist[i] > mod_numpatterns)
@@ -806,12 +806,12 @@ void modplay_init(uint32_t address)
 	inrepeat	= 0;
 	addflag		= 0;
 
-	mod_speed = 6;
-	nextspeed = 6;
-	mod_tempo = 125;
-	nexttempo = 125;
+	mod_speed	= 6;
+	nextspeed	= 6;
+	mod_tempo	= 125;
+	nexttempo	= 125;
 
-	done = 0;
+	done		= 0;
 
 	for(i = 0; i < 4; i++)
 	{
@@ -834,14 +834,6 @@ void modplay_init(uint32_t address)
 		channel_looppoint			[i] = 0;
 		channel_loopcount			[i] = -1;
 		channel_sample				[i] = 0;
-
-		// channel_index			[i] = 0;
-		// channel_arp[3]			[i] = 0;
-		// channel_cut				[i] = 0;
-		// channel_vibspeed			[i] = 0;
-		// channel_vibdepth			[i] = 0;
-		// channel_tremspeed		[i] = 0;
-		// channel_tremdepth		[i] = 0;
 	}
 
 	// audioxbar_setcoefficient(i, 0xff);
