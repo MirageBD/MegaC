@@ -1,4 +1,4 @@
-			.extern steptick
+			.extern modplay_play
 
 ; ------------------------------------------------------------------------------------
 
@@ -12,7 +12,7 @@ irq_main:
 
 			lda #0x01
 			sta 0xd020
-			jsr steptick
+			jsr modplay_play
 			lda #0x00
 			sta 0xd020
 

@@ -1,21 +1,27 @@
+// TODO:
+
+// set song loop point correctly
+// FINETUNE!!!
+// tempo?? speed??
+// reset function
+
 #include <calypsi/intrinsics6502.h>
 #include <stdint.h>
 #include "macros.h"
 #include "registers.h"
 #include "dma.h"
 
-#define MAX_INSTRUMENTS						32
-#define NUMRASTERS							(uint32_t)(2 * 312)	// PAL 0-311, NTSC 0-262
-#define RASTERS_PER_SECOND					(uint32_t)(NUMRASTERS * 50)
-#define RASTERS_PER_MINUTE					(uint32_t)(RASTERS_PER_SECOND * 60)
-#define ROWS_PER_BEAT						4
-#define NUM_SIGS							4
+#define MP_MAX_INSTRUMENTS					32
+#define MP_NUMRASTERS						(uint32_t)(2 * 312)	// PAL 0-311, NTSC 0-262
+#define MP_RASTERS_PER_SECOND				(uint32_t)(MP_NUMRASTERS * 50)
+#define MP_RASTERS_PER_MINUTE				(uint32_t)(MP_RASTERS_PER_SECOND * 60)
+#define MP_NUM_SIGS							4
 
-#define SAMPLE_RATE_DIVISORLO				0x8B
-#define SAMPLE_RATE_DIVISORMID				0x67
-#define SAMPLE_RATE_DIVISORHI				0x16
+#define MP_SAMPLE_RATE_DIVISORLO			0x8B
+#define MP_SAMPLE_RATE_DIVISORMID			0x67
+#define MP_SAMPLE_RATE_DIVISORHI			0x16
 
-int8_t mod31_sigs[NUM_SIGS][4] =
+int8_t mp_modsigs[MP_NUM_SIGS][4] =
 {
 	{ 0x4d, 0x2e, 0x4b, 0x2e },	// M.K.
 	{ 0x4d, 0x21, 0x4b, 0x21 }, // M!K!
@@ -23,7 +29,7 @@ int8_t mod31_sigs[NUM_SIGS][4] =
 	{ 0x46, 0x4c, 0x54, 0x38 }  // FLT8
 };
 
-int16_t	sine[64] =
+int16_t	mp_sine[64] =
 {
 	   0,   24,   49,   74,   97,  120,  141,  161,  180,  197,  212,  224,  235,  244,  250,  253,
 	 254,  253,  250,  244,  235,  224,  212,  197,  180,  161,  141,  120,   97,   74,   49,   24,
@@ -31,7 +37,7 @@ int16_t	sine[64] =
 	-254, -253, -250, -244, -235, -224, -212, -197, -180, -161, -141, -120,  -97,  -74,  -49,  -24,
 };
 
-int16_t	saw[64] =
+int16_t	mp_saw[64] =
 {
 	 255,  247,  239,  231,  223,  215,  207,  199,  191,  183,  175,  167,  159,  151,  143,  135,
 	 127,  119,  111,  103,   95,   87,   79,   71,   63,   55,   47,   39,   31,   23,   15,    7,
@@ -39,7 +45,7 @@ int16_t	saw[64] =
 	-129, -137, -145, -153, -161, -169, -177, -185, -193, -201, -209, -217, -225, -233, -241, -249,
 };
 
-int16_t	square[64] =
+int16_t	mp_square[64] =
 {
 	 255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,
 	 255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,
@@ -47,30 +53,30 @@ int16_t	square[64] =
 	-256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256,
 };
 
-int16_t* waves[3] = { sine, saw, square };
+int16_t* mp_waves[3] = { mp_sine, mp_saw, mp_square };
 
-uint8_t enabled_channels[4] = { 1, 1, 1, 1 };
+uint8_t mp_enabled_channels[4] = { 1, 1, 1, 1 };
 
 // GLOBAL DATA
 
-uint8_t			done;
-uint8_t			patternset;
-uint8_t			row;
-uint8_t			currow;
-uint8_t			pattern;
-uint8_t			delcount;
-uint8_t			globaltick;
-uint8_t			delset;
-uint8_t			inrepeat;
-uint8_t			addflag;
-uint8_t			arpeggiocounter;
+uint8_t			mp_done;
+uint8_t			mp_patternset;
+uint8_t			mp_row;
+uint8_t			mp_currow;
+uint8_t			mp_pattern;
+uint8_t			mp_delcount;
+uint8_t			mp_globaltick;
+uint8_t			mp_delset;
+uint8_t			mp_inrepeat;
+uint8_t			mp_addflag;
+uint8_t			mp_arpeggiocounter;
 
-uint8_t			nextspeed;
-uint8_t			nexttempo;
-uint8_t			loop						= 1;
-uint8_t			beats_per_minute			= 125;
-uint8_t			curpattern;
-uint8_t			song_loop_point;			// unused
+uint8_t			mp_nextspeed;
+uint8_t			mp_nexttempo;
+uint8_t			mp_loop						= 1;
+uint8_t			mp_bpm						= 125;
+uint8_t			mp_curpattern;
+uint8_t			mp_song_loop_point;			// unused
 
 uint8_t			freqlo;
 uint8_t			freqhi;
@@ -91,16 +97,16 @@ uint8_t			mod_speed;
 uint16_t		mod_tempo;
 uint8_t			mod_patternlist[128];
 uint8_t			mod_tmpbuf[23];
-uint8_t			currowdata[16];				// data for current pattern
+uint8_t			mp_currowdata[16];				// data for current pattern
 
 // SAMPLE DATA FOR ALL INSTRUMENTS ---------------------------
 
-uint16_t		sample_lengths				[MAX_INSTRUMENTS];
-uint8_t			sample_finetune				[MAX_INSTRUMENTS];
-uint8_t			sample_vol					[MAX_INSTRUMENTS];
-uint16_t		sample_repeatpoint			[MAX_INSTRUMENTS];
-uint16_t		sample_repeatlength			[MAX_INSTRUMENTS];
-uint32_t		sample_addr					[MAX_INSTRUMENTS];
+uint16_t		sample_lengths				[MP_MAX_INSTRUMENTS];
+uint8_t			sample_finetune				[MP_MAX_INSTRUMENTS];
+uint8_t			sample_vol					[MP_MAX_INSTRUMENTS];
+uint16_t		sample_repeatpoint			[MP_MAX_INSTRUMENTS];
+uint16_t		sample_repeatlength			[MP_MAX_INSTRUMENTS];
+uint32_t		sample_addr					[MP_MAX_INSTRUMENTS];
 
 // CHANNEL DATA FOR ALL 4 CHANNELS ---------------------------
 
@@ -133,15 +139,16 @@ uint16_t		channel_offsetmem			[4];
 
 // ------------------------------------------------------------------------------------
 
-uint16_t periods[36] =
+uint16_t mp_periods[36] =
 {
 	856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480, 453,
 	428, 404, 381, 360, 339, 320, 302, 285, 269, 254, 240, 226,
 	214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120, 113,
 };
 
-int8_t findperiod(uint16_t period)
+int8_t mp_findperiod(uint16_t period)
 {
+	// this takes 6 steps at most to reach final period (36/2/2/2/2/2/2)
 	if(period > 856 || period < 113)
 		return -1;
 
@@ -152,9 +159,9 @@ int8_t findperiod(uint16_t period)
 	while(upper >= lower)
 	{
 		mid = (upper + lower) / 2;
-		if(periods[mid] == period)
+		if(mp_periods[mid] == period)
 			return mid;
-		else if(periods[mid] > period)
+		else if(mp_periods[mid] > period)
 			lower = mid + 1;
 		else
 			upper = mid - 1;
@@ -165,7 +172,7 @@ int8_t findperiod(uint16_t period)
 
 // ------------------------------------------------------------------------------------
 
-void preprocesseffects(uint8_t* data)
+void mp_preprocesseffects(uint8_t* data)
 {
 	if ((*(data+2) & 0x0f) == 0x0f) // set speed / tempo
 	{
@@ -173,20 +180,20 @@ void preprocesseffects(uint8_t* data)
 
 		if(effectdata > 0x1f)
 		{
-			mod_tempo    = effectdata;
-			nexttempo    = effectdata;
+			mod_tempo		= effectdata;
+			mp_nexttempo	= effectdata;
 		}
 		else
 		{
 			mod_speed = effectdata;
-			nextspeed = effectdata;
+			mp_nextspeed = effectdata;
 		}
 	}
 }
 
 // ------------------------------------------------------------------------------------
 
-void processnote(uint8_t channel, uint8_t *data)
+void mp_processnote(uint8_t channel, uint8_t *data)
 {
 	uint8_t tempsam = ((((*data)) & 0xf0) | ((*(data + 2) >> 4) & 0x0f));
 
@@ -196,16 +203,16 @@ void processnote(uint8_t channel, uint8_t *data)
 	uint8_t tempeffect = *(data + 2) & 0x0f;
 
 	// EDx : delay note x vblanks
-	if(globaltick == 0 && tempeffect == 0x0e && (effectdata & 0xf0) == 0xd0)
+	if(mp_globaltick == 0 && tempeffect == 0x0e && (effectdata & 0xf0) == 0xd0)
 		channel_deltick[channel] = (effectdata & 0x0f) % mod_speed;
 
 	uint8_t ch_ofs = channel << 4;
 
 	uint8_t triggersample = 0; // NOT IN ORIGINAL SOURCE - FIND BETTER WAY OF HANDLING THIS!!!
 
-	if(globaltick == channel_deltick[channel]) // 0 if no note delay
+	if(mp_globaltick == channel_deltick[channel]) // 0 if no note delay
 	{
-		if((period || tempsam) && !inrepeat)
+		if((period || tempsam) && !mp_inrepeat)
 		{
 			triggersample = 1;
 
@@ -248,7 +255,7 @@ void processnote(uint8_t channel, uint8_t *data)
 				if(effectdata)
 				{
 					channel_period[channel] = channel_portdest[channel];
-					int8_t base = findperiod(channel_period[channel]);
+					int8_t base = mp_findperiod(channel_period[channel]);
 
 					if(base == -1)
 					{
@@ -258,7 +265,7 @@ void processnote(uint8_t channel, uint8_t *data)
 						break;
 					}
 
-					arpeggiocounter = 0;
+					mp_arpeggiocounter = 0;
 
 					uint8_t step1 = base + ((effectdata >> 4) & 0x0f);
 					uint8_t step2 = base + ((effectdata     ) & 0x0f);
@@ -270,11 +277,11 @@ void processnote(uint8_t channel, uint8_t *data)
 						if(step1 == 36)
 							channel_arp[1][channel] = 0;
 						else
-							channel_arp[1][channel] = periods[(step1 - 1) % 36];
+							channel_arp[1][channel] = mp_periods[(step1 - 1) % 36];
 					}
 					else
 					{
-						channel_arp[1][channel] = periods[step1];
+						channel_arp[1][channel] = mp_periods[step1];
 					}
 
 					if(step2 > 35)
@@ -282,9 +289,9 @@ void processnote(uint8_t channel, uint8_t *data)
 						if(step2 == 36)
 							channel_arp[2][channel] = 0;
 						else
-							channel_arp[2][channel] = periods[(step2 - 1) % 36];
+							channel_arp[2][channel] = mp_periods[(step2 - 1) % 36];
 					}
-					else channel_arp[2][channel] = periods[step2];
+					else channel_arp[2][channel] = mp_periods[step2];
 				}
 
 				break;
@@ -310,10 +317,10 @@ void processnote(uint8_t channel, uint8_t *data)
 				break;
 
 			case 0x0b: // position jump
-				if(currow == row)
-					row = 0;
-				pattern = effectdata;
-				patternset = 1;
+				if(mp_currow == mp_row)
+					mp_row = 0;
+				mp_pattern = effectdata;
+				mp_patternset = 1;
 				break;
 
 			case 0xc: // set volume
@@ -324,17 +331,17 @@ void processnote(uint8_t channel, uint8_t *data)
 				channel_tempvolume[channel] = channel_volume[channel];
 				break;
 
-			case 0x0d: // row jump
-				if(delcount)
+			case 0x0d: // mp_row jump
+				if(mp_delcount)
 					break;
-				if(!patternset)
-					pattern++;
-				if(pattern >= mod_songlength)
-					pattern = 0;
-				row = (effectdata >> 4) * 10 + (effectdata & 0x0f);
-				patternset = 1;
-				if(addflag)
-					row++; // emulate protracker EEx + Dxx bug
+				if(!mp_patternset)
+					mp_pattern++;
+				if(mp_pattern >= mod_songlength)
+					mp_pattern = 0;
+				mp_row = (effectdata >> 4) * 10 + (effectdata & 0x0f);
+				mp_patternset = 1;
+				if(mp_addflag)
+					mp_row++; // emulate protracker EEx + Dxx bug
 				break;
 
 			case 0x0e:
@@ -354,18 +361,18 @@ void processnote(uint8_t channel, uint8_t *data)
 					case 0x60: // jump to loop, play x times
 						if(!(effectdata & 0x0f))
 						{
-							channel_looppoint[channel] = row;
+							channel_looppoint[channel] = mp_row;
 						}
 						else if(effectdata & 0x0f)
 						{
 							if(channel_loopcount[channel] == -1)
 							{
 								channel_loopcount[channel] = (effectdata & 0x0f);
-								row = channel_looppoint[channel];
+								mp_row = channel_looppoint[channel];
 							}
 							else if(channel_loopcount[channel])
 							{
-								row = channel_looppoint[channel];
+								mp_row = channel_looppoint[channel];
 							}
 							channel_loopcount[channel]--;
 						}
@@ -386,10 +393,10 @@ void processnote(uint8_t channel, uint8_t *data)
 						break;
 
 					case 0xe0: // delay pattern x notes
-						if(!delset)
-							delcount = effectdata & 0x0f;
-						delset = 1;
-						addflag = 1; // emulate bug that causes protracker to cause Dxx to jump too far when used in conjunction with EEx
+						if(!mp_delset)
+							mp_delcount = effectdata & 0x0f;
+						mp_delset = 1;
+						mp_addflag = 1; // emulate bug that causes protracker to cause Dxx to jump too far when used in conjunction with EEx
 						break;
 
 					case 0xf0:
@@ -414,7 +421,7 @@ void processnote(uint8_t channel, uint8_t *data)
 		{
 			case 0x00: // normal / arpeggio
 				if(effectdata)
-					channel_tempperiod[channel] = channel_arp[arpeggiocounter % 3][channel];
+					channel_tempperiod[channel] = channel_arp[mp_arpeggiocounter % 3][channel];
 				break;
 
 			case 0x01: // slide up
@@ -460,13 +467,13 @@ void processnote(uint8_t channel, uint8_t *data)
 				// no break, exploit fallthrough
 
 			case 0x04: // vibrato
-				channel_tempperiod[channel]  = channel_period[channel] + ((channel_vibdepth[channel] * waves[channel_vibwave[channel] & 3][channel_vibpos[channel]]) >> 7);
+				channel_tempperiod[channel]  = channel_period[channel] + ((channel_vibdepth[channel] * mp_waves[channel_vibwave[channel] & 3][channel_vibpos[channel]]) >> 7);
 				channel_vibpos[channel]     += channel_vibspeed[channel];
 				channel_vibpos[channel]     %= 64;
 				break;
 
 			case 0x07: // tremolo
-				channel_tempvolume[channel]  = channel_volume[channel] + ((channel_tremdepth[channel] * waves[channel_tremwave[channel] & 3][channel_trempos[channel]]) >> 6);
+				channel_tempvolume[channel]  = channel_volume[channel] + ((channel_tremdepth[channel] * mp_waves[channel_tremwave[channel] & 3][channel_trempos[channel]]) >> 6);
 				channel_trempos[channel]    += channel_tremspeed[channel];
 				channel_trempos[channel]    %= 64;
 				break;
@@ -509,12 +516,12 @@ void processnote(uint8_t channel, uint8_t *data)
 					// No effect 0x0E80
 
 					case 0x90: // retrigger note + x vblanks (ticks)
-						if(((effectdata & 0x0f) == 0) || (globaltick % (effectdata & 0x0f)) == 0)
+						if(((effectdata & 0x0f) == 0) || (mp_globaltick % (effectdata & 0x0f)) == 0)
 							channel_index[channel] = channel_offset[channel];
 						break;
 
 					case 0xc0: // cut from note + x vblanks
-						if(globaltick == (effectdata & 0x0f))
+						if(mp_globaltick == (effectdata & 0x0f))
 							channel_volume[channel] = 0;
 						break;
 				}
@@ -524,7 +531,7 @@ void processnote(uint8_t channel, uint8_t *data)
 			case 0xf: // Speed / tempo
 				if(effectdata == 0)
 				{
-					done = 1;
+					mp_done = 1;
 					break;
 				}
 				if (effectdata < 0x20) // speed (00-1F) / ticks per row (normally 6)
@@ -535,7 +542,7 @@ void processnote(uint8_t channel, uint8_t *data)
 				{
 					//beats_per_minute = effectdata;
 					// // mod_tempo *= 6 / (effectdata & 0x1f);
-					//mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
+					//mod_tempo = MP_RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
 					//mod_speed = mod_tempo / NUMRASTERS;
 				}
 				break;
@@ -551,7 +558,7 @@ void processnote(uint8_t channel, uint8_t *data)
 	if     (channel_tempperiod[channel] > 856)	channel_tempperiod[channel] = 856;
 	else if(channel_tempperiod[channel] < 113)	channel_tempperiod[channel] = 113;
 
-	if(globaltick == mod_speed - 1)
+	if(mp_globaltick == mod_speed - 1)
 	{
 		channel_tempperiod[channel] = channel_period[channel];
 		channel_deltick[channel] = 0;
@@ -581,9 +588,9 @@ void processnote(uint8_t channel, uint8_t *data)
 	freqlo = MATH.DIVOUTFRACT0;
 	freqhi = MATH.DIVOUTFRACT1;
 
-	MATH.MULTINA0 = SAMPLE_RATE_DIVISORLO;
-	MATH.MULTINA1 = SAMPLE_RATE_DIVISORMID;
-	MATH.MULTINA2 = SAMPLE_RATE_DIVISORHI;
+	MATH.MULTINA0 = MP_SAMPLE_RATE_DIVISORLO;
+	MATH.MULTINA1 = MP_SAMPLE_RATE_DIVISORMID;
+	MATH.MULTINA2 = MP_SAMPLE_RATE_DIVISORHI;
 	MATH.MULTINA3 = 0;
 
 	MATH.MULTINB0 = freqlo;
@@ -612,9 +619,9 @@ void processnote(uint8_t channel, uint8_t *data)
 
 	uint8_t curchansamp = channel_sample[channel];
 
-	if(globaltick == 0 && triggersample == 1 && !channel_stop[channel])
+	if(mp_globaltick == 0 && triggersample == 1 && !channel_stop[channel])
 	{
-		if(enabled_channels[channel] == 0)
+		if(mp_enabled_channels[channel] == 0)
 			return;
 
 		poke(0xd720 + ch_ofs, 0x00);													// Stop playback while loading new sample data
@@ -657,75 +664,75 @@ void processnote(uint8_t channel, uint8_t *data)
 
 // ------------------------------------------------------------------------------------
 
-void steptick()
+void modplay_play()
 {
-	arpeggiocounter++;
+	mp_arpeggiocounter++;
 
-	if(row == 64)
+	if(mp_row == 64)
 	{
-		row = 0;
-		pattern++;
+		mp_row = 0;
+		mp_pattern++;
 	}
 
-	if(pattern >= mod_songlength)
+	if(mp_pattern >= mod_songlength)
 	{
-		if(loop)
+		if(mp_loop)
 		{
-			pattern      =    0;
-			row          =    0;
-			globaltick   =    0;
-			mod_speed    =    6;
-			nextspeed    =    6;
-			mod_tempo    =  125;
-			nexttempo    =  125;
+			mp_pattern		=    0;
+			mp_row			=    0;
+			mp_globaltick	=    0;
+			mod_speed		=    6;
+			mp_nextspeed	=    6;
+			mod_tempo		=  125;
+			mp_nexttempo	=  125;
 		}
 		else
 		{
-			done = 1;
+			mp_done = 1;
 			return;
 		}
 	}
 
-	if(globaltick == 0)
+	if(mp_globaltick == 0)
 	{
-		patternset = 0;
-		dma_lcopy(mod_addr + mod_song_offset + (mod_patternlist[pattern] << 10) + (row << 4), (uint32_t)currowdata, 16);
-		currow     = row;
-		curpattern = pattern;
+		mp_patternset = 0;
+		dma_lcopy(mod_addr + mod_song_offset + (mod_patternlist[mp_pattern] << 10) + (mp_row << 4), (uint32_t)mp_currowdata, 16);
+		mp_currow		= mp_row;
+		mp_curpattern	= mp_pattern;
 
-		preprocesseffects(&currowdata[0 ]);
-		preprocesseffects(&currowdata[4 ]);
-		preprocesseffects(&currowdata[8 ]);
-		preprocesseffects(&currowdata[12]);
+		mp_preprocesseffects(&mp_currowdata[0 ]);
+		mp_preprocesseffects(&mp_currowdata[4 ]);
+		mp_preprocesseffects(&mp_currowdata[8 ]);
+		mp_preprocesseffects(&mp_currowdata[12]);
 
-		mod_speed = nextspeed;
-		mod_tempo = nexttempo;
+		mod_speed = mp_nextspeed;
+		mod_tempo = mp_nexttempo;
 	}
 
-	processnote(0, &currowdata[0 ]);
-	processnote(1, &currowdata[4 ]);
-	processnote(2, &currowdata[8 ]);
-	processnote(3, &currowdata[12]);
+	mp_processnote(0, &mp_currowdata[0 ]);
+	mp_processnote(1, &mp_currowdata[4 ]);
+	mp_processnote(2, &mp_currowdata[8 ]);
+	mp_processnote(3, &mp_currowdata[12]);
 
-	globaltick++;
-	if(globaltick == mod_speed)
+	mp_globaltick++;
+	if(mp_globaltick == mod_speed)
 	{
-		if(delcount)
+		if(mp_delcount)
 		{
-			inrepeat = 1;
-			delcount--;
+			mp_inrepeat = 1;
+			mp_delcount--;
 		}
 		else
 		{
-			delset   = 0;
-			addflag  = 0;
-			inrepeat = 0;
+			mp_delset	= 0;
+			mp_addflag	= 0;
+			mp_inrepeat	= 0;
 
-			if(currow == row)
-				row++;
+			if(mp_currow == mp_row)
+				mp_row++;
 		}
 
-		globaltick = 0;
+		mp_globaltick = 0;
 	}
 }
 
@@ -744,10 +751,10 @@ void modplay_init(uint32_t address)
 	numinstruments = 15;
 	mod_song_offset = 1080 - (16 * 30);
 
-	for(i = 0; i < NUM_SIGS; i++)
+	for(i = 0; i < MP_NUM_SIGS; i++)
 	{
 		for(a = 0; a < 4; a++)
-			if(mod_tmpbuf[a] != mod31_sigs[i][a])
+			if(mod_tmpbuf[a] != mp_modsigs[i][a])
 				break;
 		if(a == 4)
 		{
@@ -778,7 +785,7 @@ void modplay_init(uint32_t address)
 	}
 
 	mod_songlength = lpeek(mod_addr + 20 + numinstruments*30 + 0);
-	song_loop_point = lpeek(mod_addr + 20 + numinstruments*30 + 1);
+	mp_song_loop_point = lpeek(mod_addr + 20 + numinstruments*30 + 1);
 
 	dma_lcopy(mod_addr + 20 + numinstruments * 30 + 2, (uint32_t)mod_patternlist, 128);
 	for(i = 0; i < mod_songlength; i++)
@@ -789,27 +796,27 @@ void modplay_init(uint32_t address)
 
 	mod_sample_data = mod_addr + mod_song_offset + ((uint32_t)mod_numpatterns + 1) * 1024;
 
-	for(i = 0; i < MAX_INSTRUMENTS; i++)
+	for(i = 0; i < MP_MAX_INSTRUMENTS; i++)
 	{
 		sample_addr[i] = mod_sample_data;
 		mod_sample_data += sample_lengths[i];
 	}
 
-	row			= 0;
-	currow		= 0;
-	pattern		= 0;
-	delcount	= 0;
-	globaltick	= 0;
-	delset		= 0;
-	inrepeat	= 0;
-	addflag		= 0;
+	mp_row			= 0;
+	mp_currow		= 0;
+	mp_pattern		= 0;
+	mp_delcount		= 0;
+	mp_globaltick	= 0;
+	mp_delset		= 0;
+	mp_inrepeat		= 0;
+	mp_addflag		= 0;
 
-	mod_speed	= 6;
-	nextspeed	= 6;
-	mod_tempo	= 125;
-	nexttempo	= 125;
+	mod_speed		= 6;
+	mp_nextspeed	= 6;
+	mod_tempo		= 125;
+	mp_nexttempo	= 125;
 
-	done		= 0;
+	mp_done		= 0;
 
 	for(i = 0; i < 4; i++)
 	{
