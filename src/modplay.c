@@ -40,8 +40,6 @@ int8_t mod31_sigs[NUM_SIGS][4] =
 	{ 0x46, 0x4c, 0x54, 0x38 }  // FLT8
 };
 
-uint8_t enabled_channels[4] = { 1, 1, 1, 1 };
-
 uint16_t periods[] =
 {
 	856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480, 453,
@@ -49,17 +47,39 @@ uint16_t periods[] =
 	214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120, 113,
 };
 
-uint8_t sin[] =
+int16_t	sine[64] =
 {
-	  0,  24,  49,  74,  97, 120, 141, 161,
-	180, 197, 212, 224, 235, 244, 250, 253,
-	255, 253, 250, 244, 235, 224, 212, 197,
-	180, 161, 141, 120,  97,  74,  49,  24,
+    0,   24,   49,   74,   97,  120,  141,  161,  180,  197,  212,  224,  235,  244,  250,  253,
+  254,  253,  250,  244,  235,  224,  212,  197,  180,  161,  141,  120,   97,   74,   49,   24,
+    0,  -24,  -49,  -74,  -97, -120, -141, -161, -180, -197, -212, -224, -235, -244, -250, -253,
+ -254, -253, -250, -244, -235, -224, -212, -197, -180, -161, -141, -120,  -97,  -74,  -49,  -24,
 };
+
+int16_t	saw[64] =
+{
+  255,  247,  239,  231,  223,  215,  207,  199,  191,  183,  175,  167,  159,  151,  143,  135,
+  127,  119,  111,  103,   95,   87,   79,   71,   63,   55,   47,   39,   31,   23,   15,    7,
+   -1,   -9,  -17,  -25,  -33,  -41,  -49,  -57,  -65,  -73,  -81,  -89,  -97, -105, -113, -121,
+ -129, -137, -145, -153, -161, -169, -177, -185, -193, -201, -209, -217, -225, -233, -241, -249,
+};
+
+int16_t	square[64] =
+{
+  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,
+  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,
+ -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256,
+ -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256,
+};
+
+int16_t* waves [3] = { sine, saw, square };
+
+uint8_t enabled_channels[4] = { 1, 1, 1, 1 };
 
 // GLOBAL DATA
 
 int32_t			sample_rate_divisor			= 1468299;
+// int32_t			sample_rate_divisor			= 1400000;
+
 uint8_t			done						= 0;
 uint8_t			patternset;
 
@@ -466,19 +486,15 @@ void processnote(uint8_t channel, uint8_t *data)
 				// no break, exploit fallthrough
 
 			case 0x04: // vibrato
-				/*
-				channel_tempperiod[channel]  = channel_period[channel] +	((channel_vibdepth[channel] * waves[channel_vibwave[channel] & 3][channel_vibpos[channel]]) >> 7);
+				channel_tempperiod[channel]  = channel_period[channel] + ((channel_vibdepth[channel] * waves[channel_vibwave[channel] & 3][channel_vibpos[channel]]) >> 7);
 				channel_vibpos[channel]     += channel_vibspeed[channel];
 				channel_vibpos[channel]     %= 64;
-				*/
 				break;
 
 			case 0x07: // tremolo
-				/*
-				channel_tempvolume[channel]  = channel_volume[channel] +	((channel_tremdepth[channel] * waves[channel_tremwave[channel] & 3][channel_trempos[channel]]) >> 6);
+				channel_tempvolume[channel]  = channel_volume[channel] + ((channel_tremdepth[channel] * waves[channel_tremwave[channel] & 3][channel_trempos[channel]]) >> 6);
 				channel_trempos[channel]    += channel_tremspeed[channel];
 				channel_trempos[channel]    %= 64;
-				*/
 				break;
 
 			case 0x0a: // volume slide
