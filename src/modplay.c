@@ -78,7 +78,6 @@ uint8_t enabled_channels[4] = { 1, 1, 1, 1 };
 // GLOBAL DATA
 
 int32_t			sample_rate_divisor			= 1468299;
-// int32_t			sample_rate_divisor			= 1400000;
 
 uint8_t			done						= 0;
 uint8_t			patternset;
@@ -647,6 +646,17 @@ void processnote(uint8_t channel, uint8_t *data)
 
 		poke(0xd720 + ch_ofs, 0x00);													// Stop playback while loading new sample data
 
+		// D721 55073 CH0BADDRLSB
+		// D722 55074 CH0BADDRMSB
+		// D723 55075 CH0BADDRBNK
+
+		// D727 55079 CH0TADDRLSB
+		// D728 55080 CH0TADDRMSB
+
+		// D72A 55082 CH0CURADDRLSB
+		// D72B 55083 CH0CURADDRMSB
+		// D72C 55084 CH0CURADDRBNK
+
 		uint32_t sample_adr = sample_addr[curchansamp] + channel_offset[channel];
 
 		sample_address0 = (sample_adr >>  0) & 0xff;
@@ -661,26 +671,24 @@ void processnote(uint8_t channel, uint8_t *data)
 		poke(0xd72b + ch_ofs, sample_address1);
 		poke(0xd72c + ch_ofs, sample_address2);
 
-		top_addr = sample_addr[curchansamp] + sample_lengths[curchansamp];						// Sample top address
+		// Top addr
+		top_addr = sample_addr[curchansamp] + sample_lengths[curchansamp];				// Sample top address
 		poke(0xd727 + ch_ofs, (top_addr >> 0) & 0xff);
 		poke(0xd728 + ch_ofs, (top_addr >> 8) & 0xff);
 
-		if(sample_repeatpoint[curchansamp])													// Set base addr and top addr to the looping range, if the sample has one.
+		if(sample_repeatpoint[curchansamp])												// Set base addr and top addr to the looping range, if the sample has one.
 		{
 			// start of loop
 			poke(0xd721 + ch_ofs, (((uint32_t)sample_addr[curchansamp] + 2 * sample_repeatpoint[curchansamp]                                  ) >> 0 ) & 0xff);
 			poke(0xd722 + ch_ofs, (((uint32_t)sample_addr[curchansamp] + 2 * sample_repeatpoint[curchansamp]                                  ) >> 8 ) & 0xff);
 			poke(0xd723 + ch_ofs, (((uint32_t)sample_addr[curchansamp] + 2 * sample_repeatpoint[curchansamp]                                  ) >> 16) & 0xff);
 
-			// Top addr
-			poke(0xd727 + ch_ofs, (((uint16_t)sample_addr[curchansamp] + 2 * (sample_repeatpoint[curchansamp] + sample_repeatlength[curchansamp] - 1)) >> 0 ) & 0xff);
-			poke(0xd728 + ch_ofs, (((uint16_t)sample_addr[curchansamp] + 2 * (sample_repeatpoint[curchansamp] + sample_repeatlength[curchansamp] - 1)) >> 8 ) & 0xff);
-		}
-
-		if (sample_repeatpoint[curchansamp])
 			poke(0xd720 + ch_ofs, 0xc2);												// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
+		}
 		else
+		{
 			poke(0xd720 + ch_ofs, 0x82);												// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
+		}
 
 		poke(0xd711, 0b10010000);														// Enable audio dma, enable bypass of audio mixer
 	}
