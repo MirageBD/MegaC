@@ -5,12 +5,16 @@
 #include "dma.h"
 
 #define MAX_INSTRUMENTS						32
-#define NUMRASTERS							(uint32_t)(2 * 312)
-#define RASTERS_PER_SECOND					(uint32_t)(NUMRASTERS * 50)	// PAL 0-311, NTSC 0-262
+#define NUMRASTERS							(uint32_t)(2 * 312)	// PAL 0-311, NTSC 0-262
+#define RASTERS_PER_SECOND					(uint32_t)(NUMRASTERS * 50)
 #define RASTERS_PER_MINUTE					(uint32_t)(RASTERS_PER_SECOND * 60)
 #define ROWS_PER_BEAT						4
-
 #define NUM_SIGS							4
+
+#define SAMPLE_RATE_DIVISORLO				0x8B
+#define SAMPLE_RATE_DIVISORMID				0x67
+#define SAMPLE_RATE_DIVISORHI				0x16
+
 int8_t mod31_sigs[NUM_SIGS][4] =
 {
 	{ 0x4d, 0x2e, 0x4b, 0x2e },	// M.K.
@@ -28,40 +32,36 @@ uint16_t periods[] =
 
 int16_t	sine[64] =
 {
-    0,   24,   49,   74,   97,  120,  141,  161,  180,  197,  212,  224,  235,  244,  250,  253,
-  254,  253,  250,  244,  235,  224,  212,  197,  180,  161,  141,  120,   97,   74,   49,   24,
-    0,  -24,  -49,  -74,  -97, -120, -141, -161, -180, -197, -212, -224, -235, -244, -250, -253,
- -254, -253, -250, -244, -235, -224, -212, -197, -180, -161, -141, -120,  -97,  -74,  -49,  -24,
+	   0,   24,   49,   74,   97,  120,  141,  161,  180,  197,  212,  224,  235,  244,  250,  253,
+	 254,  253,  250,  244,  235,  224,  212,  197,  180,  161,  141,  120,   97,   74,   49,   24,
+	   0,  -24,  -49,  -74,  -97, -120, -141, -161, -180, -197, -212, -224, -235, -244, -250, -253,
+	-254, -253, -250, -244, -235, -224, -212, -197, -180, -161, -141, -120,  -97,  -74,  -49,  -24,
 };
 
 int16_t	saw[64] =
 {
-  255,  247,  239,  231,  223,  215,  207,  199,  191,  183,  175,  167,  159,  151,  143,  135,
-  127,  119,  111,  103,   95,   87,   79,   71,   63,   55,   47,   39,   31,   23,   15,    7,
-   -1,   -9,  -17,  -25,  -33,  -41,  -49,  -57,  -65,  -73,  -81,  -89,  -97, -105, -113, -121,
- -129, -137, -145, -153, -161, -169, -177, -185, -193, -201, -209, -217, -225, -233, -241, -249,
+	 255,  247,  239,  231,  223,  215,  207,  199,  191,  183,  175,  167,  159,  151,  143,  135,
+	 127,  119,  111,  103,   95,   87,   79,   71,   63,   55,   47,   39,   31,   23,   15,    7,
+	  -1,   -9,  -17,  -25,  -33,  -41,  -49,  -57,  -65,  -73,  -81,  -89,  -97, -105, -113, -121,
+	-129, -137, -145, -153, -161, -169, -177, -185, -193, -201, -209, -217, -225, -233, -241, -249,
 };
 
 int16_t	square[64] =
 {
-  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,
-  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,
- -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256,
- -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256,
+	 255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,
+	 255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,  255,
+	-256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256,
+	-256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256, -256,
 };
 
-int16_t* waves [3] = { sine, saw, square };
+int16_t* waves[3] = { sine, saw, square };
 
 uint8_t enabled_channels[4] = { 1, 1, 1, 1 };
 
 // GLOBAL DATA
 
-int32_t			sample_rate_divisor			= 1468299;
-
-uint8_t			done						= 0;
+uint8_t			done;
 uint8_t			patternset;
-
-// variables initialized in initsound
 uint8_t			row;
 uint8_t			currow;
 uint8_t			pattern;
@@ -70,6 +70,8 @@ uint8_t			globaltick;
 uint8_t			delset;
 uint8_t			inrepeat;
 uint8_t			addflag;
+uint8_t			arpeggiocounter;
+
 
 // MOD DATA FOR 1 MOD ----------------------------------------
 
@@ -80,21 +82,15 @@ uint8_t			mod_numpatterns;
 uint8_t			mod_songlength;
 uint8_t			mod_speed;
 uint16_t		mod_tempo;
-uint8_t			mod_patternlist				[128];
+uint8_t			mod_patternlist[128];
 uint8_t			mod_tmpbuf[23];
-
-uint8_t			currowdata					[16];			// data for current pattern
-
+uint8_t			currowdata[16];				// data for current pattern
 uint8_t			nextspeed;
 uint8_t			nexttempo;
-
 uint8_t			loop						= 1;
-
 uint8_t			beats_per_minute			= 125;
 uint8_t			curpattern;
 uint8_t			song_loop_point;			// unused
-
-uint8_t			arpeggiocounter;
 
 // SAMPLE DATA FOR ALL INSTRUMENTS ---------------------------
 
@@ -138,9 +134,7 @@ uint16_t		channel_offsetmem			[4];
 
 uint8_t			freqlo;
 uint8_t			freqhi;
-
 uint16_t		sample_end_addr;
-
 uint8_t*		sample_address_ptr;
 uint8_t			sample_address0;
 uint8_t			sample_address1;
@@ -588,9 +582,9 @@ void processnote(uint8_t channel, uint8_t *data)
 	freqlo = MATH.DIVOUTFRACT0;
 	freqhi = MATH.DIVOUTFRACT1;
 
-	MATH.MULTINA0 = sample_rate_divisor >> 0;
-	MATH.MULTINA1 = sample_rate_divisor >> 8;
-	MATH.MULTINA2 = sample_rate_divisor >> 16;
+	MATH.MULTINA0 = SAMPLE_RATE_DIVISORLO;
+	MATH.MULTINA1 = SAMPLE_RATE_DIVISORMID;
+	MATH.MULTINA2 = SAMPLE_RATE_DIVISORHI;
 	MATH.MULTINA3 = 0;
 
 	MATH.MULTINB0 = freqlo;
