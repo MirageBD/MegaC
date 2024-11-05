@@ -192,315 +192,6 @@ void preprocesseffects(uint8_t* data)
 	}
 }
 
-void processnoteeffects(uint8_t channel, uint8_t* data)
-{
-	uint8_t effectdata = *(data + 3);
-	uint8_t tempeffect = *(data + 2) & 0x0f;
-
-	uint8_t ch_ofs = channel << 4;
-
-	switch (tempeffect)
-	{
-		case 0x00: // normal / arpeggio
-			if(effectdata)
-				channel_tempperiod[channel] = channel_arp[arpeggiocounter % 3][channel];
-			break;
-
-		case 0x01: // slide up
-			channel_period[channel] -= effectdata;
-			channel_tempperiod[channel] = channel_period[channel];
-			break;
-
-		case 0x02: // slide down
-			channel_period[channel] += effectdata;
-			channel_tempperiod[channel] = channel_period[channel];
-			break;
-
-		case 0x05: // tone portamento + volume slide
-			if(effectdata & 0xf0)
-				channel_volume[channel] += ((effectdata >> 4) & 0x0f); //slide up
-			else
-				channel_volume[channel] -= effectdata; //slide down
-			channel_tempvolume[channel] = channel_volume[channel];
-			// no break, exploit fallthrough
-
-		case 0x03: // tone portamento
-			if(channel_portdest[channel] > channel_period[channel])
-			{
-				channel_period[channel] += channel_portstep[channel];
-				if(channel_period[channel] > channel_portdest[channel])
-					channel_period[channel] = channel_portdest[channel];
-			}
-			else if(channel_portdest[channel] < channel_period[channel])
-			{
-				channel_period[channel] -= channel_portstep[channel];
-				if(channel_period[channel] < channel_portdest[channel])
-					channel_period[channel] = channel_portdest[channel];
-			}
-			channel_tempperiod[channel] = channel_period[channel];
-			break;
-
-		case 0x06: // vibrato + volume slide
-			if(effectdata & 0xf0)
-				channel_volume[channel] += ((effectdata >> 4) & 0x0f); //slide up
-			else
-				channel_volume[channel] -= effectdata; // slide down
-			channel_tempvolume[channel] = channel_volume[channel];
-			// no break, exploit fallthrough
-
-		case 0x04: // vibrato
-			/*
-			channel_tempperiod[channel]  = channel_period[channel] +	((channel_vibdepth[channel] * waves[channel_vibwave[channel] & 3][channel_vibpos[channel]]) >> 7);
-			channel_vibpos[channel]     += channel_vibspeed[channel];
-			channel_vibpos[channel]     %= 64;
-			*/
-			break;
-
-		case 0x07: // tremolo
-			/*
-			channel_tempvolume[channel]  = channel_volume[channel] +	((channel_tremdepth[channel] * waves[channel_tremwave[channel] & 3][channel_trempos[channel]]) >> 6);
-			channel_trempos[channel]    += channel_tremspeed[channel];
-			channel_trempos[channel]    %= 64;
-			*/
-			break;
-
-		case 0x0a: // volume slide
-			if(effectdata & 0xf0)
-				channel_volume[channel] += ((effectdata>>4) & 0x0f); // slide up
-			else
-				channel_volume[channel] -= effectdata; //slide down
-			channel_tempvolume[channel] = channel_volume[channel];
-			break;
-
-		case 0x0e: // E commands
-		{
-			switch(effectdata & 0xf0)
-			{
-				case 0x00: // set filter (0 on, 1 off)
-					break;
-
-				case 0x30: // glissando control (0 off, 1 on, use with tone portamento)
-					break;
-
-				case 0x40: // set vibrato waveform (0 sine, 1 ramp down, 2 square)
-					channel_vibwave[channel] = effectdata & 0x0f;
-					break;
-
-				case 0x50: // set finetune
-				{
-					int8_t tempfinetune = effectdata & 0x0f;
-					if(tempfinetune > 0x07)
-						tempfinetune |= 0xf0;
-					sample_finetune[channel_sample[channel]] = tempfinetune;
-					break;
-				}
-
-				case 0x70: // set tremolo waveform (0 sine, 1 ramp down, 2 square)
-					channel_tremwave[channel] = effectdata & 0x0f;
-					break;
-
-				// There's no effect 0xE8
-
-				case 0x90: // retrigger note + x vblanks (ticks)
-					if(((effectdata & 0x0f) == 0) || (globaltick % (effectdata & 0x0f)) == 0)
-						channel_index[channel] = channel_offset[channel];
-					break;
-
-				case 0xc0: // cut from note + x vblanks
-					if(globaltick == (effectdata & 0x0f))
-						channel_volume[channel] = 0;
-					break;
-			}
-			break;
-		}
-
-		case 0xf: // Speed / tempo
-			if(effectdata == 0)
-			{
-				done = 1;
-				break;
-			}
-			if (effectdata < 0x20) // speed (00-1F) / ticks per row (normally 6)
-			{
-				mod_speed = (effectdata & 0x1f);
-			}
-			else // tempo (20-FF)
-			{
-				//beats_per_minute = effectdata;
-				// // mod_tempo *= 6 / (effectdata & 0x1f);
-				//mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
-				//mod_speed = mod_tempo / NUMRASTERS;
-			}
-			break;
-	}
-}
-
-void processplaynoteffects(uint8_t channel, uint8_t tempeffect, uint8_t effectdata)
-{
-	switch (tempeffect)
-	{
-		case 0x00: // Normal play or Arpeggio
-			if(effectdata)
-			{
-				channel_period[channel] = channel_portdest[channel];
-				int8_t base = findperiod(channel_period[channel]);
-
-				if(base == -1)
-				{
-					channel_arp[0][channel] = channel_period[channel];
-					channel_arp[1][channel] = channel_period[channel];
-					channel_arp[2][channel] = channel_period[channel];
-					break;
-				}
-
-				arpeggiocounter = 0;
-
-				uint8_t step1 = base + ((effectdata >> 4) & 0x0f);
-				uint8_t step2 = base + ((effectdata     ) & 0x0f);
-
-				channel_arp[0][channel] = channel_period[channel];
-
-				if(step1 > 35)
-				{
-					if(step1 == 36)
-						channel_arp[1][channel] = 0;
-					else
-						channel_arp[1][channel] = periods[(step1 - 1) % 36];
-				}
-				else
-				{
-					channel_arp[1][channel] = periods[step1];
-				}
-
-				if(step2 > 35)
-				{
-					if(step2 == 36)
-						channel_arp[2][channel] = 0;
-					else
-						channel_arp[2][channel] = periods[(step2 - 1) % 36];
-				}
-				else channel_arp[2][channel] = periods[step2];
-			}
-
-			break;
-
-		case 0x03: // Tone Portamento
-			if(effectdata)
-				channel_portstep[channel] = effectdata;
-			break;
-
-		case 0x04: // vibrato
-			if(effectdata & 0x0f)
-				channel_vibdepth[channel] = (effectdata     ) & 0x0f;
-			if(effectdata & 0xf0)
-				channel_vibspeed[channel] = (effectdata >> 4) & 0x0f;
-			break;
-
-		case 0x07: // tremolo
-			if(effectdata)
-			{
-				channel_tremdepth[channel] = (effectdata     ) & 0x0f;
-				channel_tremspeed[channel] = (effectdata >> 4) & 0x0f;
-			}
-			break;
-
-		case 0x0b: // position jump
-			if(currow == row)
-				row = 0;
-			pattern = effectdata;
-			patternset = 1;
-			break;
-
-		case 0xc: // set volume
-			if(effectdata > 63)
-				channel_volume[channel] = 63;
-			else
-				channel_volume[channel] = effectdata;
-			channel_tempvolume[channel] = channel_volume[channel];
-			break;
-
-		case 0x0d: // row jump
-			if(delcount)
-				break;
-			if(!patternset)
-				pattern++;
-			if(pattern >= mod_songlength)
-				pattern = 0;
-			row = (effectdata >> 4) * 10 + (effectdata & 0x0f);
-			patternset = 1;
-			if(addflag)
-				row++; // emulate protracker EEx + Dxx bug
-			break;
-
-		case 0x0e:
-		{
-			switch(effectdata & 0xf0)
-			{
-				case 0x10:
-					channel_period[channel] -= effectdata & 0x0f;
-					channel_tempperiod[channel] = channel_period[channel];
-					break;
-
-				case 0x20:
-					channel_period[channel] += effectdata & 0x0f;
-					channel_tempperiod[channel] = channel_period[channel];
-					break;
-
-				case 0x60: // jump to loop, play x times
-					if(!(effectdata & 0x0f))
-					{
-						channel_looppoint[channel] = row;
-					}
-					else if(effectdata & 0x0f)
-					{
-						if(channel_loopcount[channel] == -1)
-						{
-							channel_loopcount[channel] = (effectdata & 0x0f);
-							row = channel_looppoint[channel];
-						}
-						else if(channel_loopcount[channel])
-						{
-							row = channel_looppoint[channel];
-						}
-						channel_loopcount[channel]--;
-					}
-					break;
-
-				case 0xa0:
-					channel_volume[channel] += (effectdata & 0x0f);
-					channel_tempvolume[channel] = channel_volume[channel];
-					break;
-
-				case 0xb0:
-					channel_volume[channel] -= (effectdata & 0x0f);
-					channel_tempvolume[channel] = channel_volume[channel];
-					break;
-
-				case 0xc0:
-					channel_cut[channel] = effectdata & 0x0f;
-					break;
-
-				case 0xe0: // delay pattern x notes
-					if(!delset)
-						delcount = effectdata & 0x0f;
-					delset = 1;
-					addflag = 1; // emulate bug that causes protracker to cause Dxx to jump too far when used in conjunction with EEx
-					break;
-
-				case 0xf0:
-					// c->funkspeed = funktable[effectdata & 0x0f];
-					break;
-
-				default:
-					break;
-			}
-		}
-
-		default:
-			break;
-	}
-}
-
 void processnote(uint8_t channel, uint8_t *data)
 {
 	uint8_t tempsam = ((((*data)) & 0xf0) | ((*(data + 2) >> 4) & 0x0f));
@@ -557,14 +248,308 @@ void processnote(uint8_t channel, uint8_t *data)
 			}
 		}
 
-		processplaynoteffects(channel, tempeffect, effectdata);
+		switch (tempeffect)
+		{
+			case 0x00: // Normal play or Arpeggio
+				if(effectdata)
+				{
+					channel_period[channel] = channel_portdest[channel];
+					int8_t base = findperiod(channel_period[channel]);
+
+					if(base == -1)
+					{
+						channel_arp[0][channel] = channel_period[channel];
+						channel_arp[1][channel] = channel_period[channel];
+						channel_arp[2][channel] = channel_period[channel];
+						break;
+					}
+
+					arpeggiocounter = 0;
+
+					uint8_t step1 = base + ((effectdata >> 4) & 0x0f);
+					uint8_t step2 = base + ((effectdata     ) & 0x0f);
+
+					channel_arp[0][channel] = channel_period[channel];
+
+					if(step1 > 35)
+					{
+						if(step1 == 36)
+							channel_arp[1][channel] = 0;
+						else
+							channel_arp[1][channel] = periods[(step1 - 1) % 36];
+					}
+					else
+					{
+						channel_arp[1][channel] = periods[step1];
+					}
+
+					if(step2 > 35)
+					{
+						if(step2 == 36)
+							channel_arp[2][channel] = 0;
+						else
+							channel_arp[2][channel] = periods[(step2 - 1) % 36];
+					}
+					else channel_arp[2][channel] = periods[step2];
+				}
+
+				break;
+
+			case 0x03: // Tone Portamento
+				if(effectdata)
+					channel_portstep[channel] = effectdata;
+				break;
+
+			case 0x04: // vibrato
+				if(effectdata & 0x0f)
+					channel_vibdepth[channel] = (effectdata     ) & 0x0f;
+				if(effectdata & 0xf0)
+					channel_vibspeed[channel] = (effectdata >> 4) & 0x0f;
+				break;
+
+			case 0x07: // tremolo
+				if(effectdata)
+				{
+					channel_tremdepth[channel] = (effectdata     ) & 0x0f;
+					channel_tremspeed[channel] = (effectdata >> 4) & 0x0f;
+				}
+				break;
+
+			case 0x0b: // position jump
+				if(currow == row)
+					row = 0;
+				pattern = effectdata;
+				patternset = 1;
+				break;
+
+			case 0xc: // set volume
+				if(effectdata > 63)
+					channel_volume[channel] = 63;
+				else
+					channel_volume[channel] = effectdata;
+				channel_tempvolume[channel] = channel_volume[channel];
+				break;
+
+			case 0x0d: // row jump
+				if(delcount)
+					break;
+				if(!patternset)
+					pattern++;
+				if(pattern >= mod_songlength)
+					pattern = 0;
+				row = (effectdata >> 4) * 10 + (effectdata & 0x0f);
+				patternset = 1;
+				if(addflag)
+					row++; // emulate protracker EEx + Dxx bug
+				break;
+
+			case 0x0e:
+			{
+				switch(effectdata & 0xf0)
+				{
+					case 0x10:
+						channel_period[channel] -= effectdata & 0x0f;
+						channel_tempperiod[channel] = channel_period[channel];
+						break;
+
+					case 0x20:
+						channel_period[channel] += effectdata & 0x0f;
+						channel_tempperiod[channel] = channel_period[channel];
+						break;
+
+					case 0x60: // jump to loop, play x times
+						if(!(effectdata & 0x0f))
+						{
+							channel_looppoint[channel] = row;
+						}
+						else if(effectdata & 0x0f)
+						{
+							if(channel_loopcount[channel] == -1)
+							{
+								channel_loopcount[channel] = (effectdata & 0x0f);
+								row = channel_looppoint[channel];
+							}
+							else if(channel_loopcount[channel])
+							{
+								row = channel_looppoint[channel];
+							}
+							channel_loopcount[channel]--;
+						}
+						break;
+
+					case 0xa0:
+						channel_volume[channel] += (effectdata & 0x0f);
+						channel_tempvolume[channel] = channel_volume[channel];
+						break;
+
+					case 0xb0:
+						channel_volume[channel] -= (effectdata & 0x0f);
+						channel_tempvolume[channel] = channel_volume[channel];
+						break;
+
+					case 0xc0:
+						channel_cut[channel] = effectdata & 0x0f;
+						break;
+
+					case 0xe0: // delay pattern x notes
+						if(!delset)
+							delcount = effectdata & 0x0f;
+						delset = 1;
+						addflag = 1; // emulate bug that causes protracker to cause Dxx to jump too far when used in conjunction with EEx
+						break;
+
+					case 0xf0:
+						// c->funkspeed = funktable[effectdata & 0x0f];
+						break;
+
+					default:
+						break;
+				}
+			}
+
+			default:
+				break;
+		}
 
 		if(channel_tempperiod[channel] == 0 /* || c->sample[channel] == NULL || c->sample->length == 0 */)
 			channel_stop[channel] = 1;
 	}
 	else if(channel_deltick[channel] == 0)
 	{
-		processnoteeffects(channel, data);
+		switch (tempeffect)
+		{
+			case 0x00: // normal / arpeggio
+				if(effectdata)
+					channel_tempperiod[channel] = channel_arp[arpeggiocounter % 3][channel];
+				break;
+
+			case 0x01: // slide up
+				channel_period[channel] -= effectdata;
+				channel_tempperiod[channel] = channel_period[channel];
+				break;
+
+			case 0x02: // slide down
+				channel_period[channel] += effectdata;
+				channel_tempperiod[channel] = channel_period[channel];
+				break;
+
+			case 0x05: // tone portamento + volume slide
+				if(effectdata & 0xf0)
+					channel_volume[channel] += ((effectdata >> 4) & 0x0f); //slide up
+				else
+					channel_volume[channel] -= effectdata; //slide down
+				channel_tempvolume[channel] = channel_volume[channel];
+				// no break, exploit fallthrough
+
+			case 0x03: // tone portamento
+				if(channel_portdest[channel] > channel_period[channel])
+				{
+					channel_period[channel] += channel_portstep[channel];
+					if(channel_period[channel] > channel_portdest[channel])
+						channel_period[channel] = channel_portdest[channel];
+				}
+				else if(channel_portdest[channel] < channel_period[channel])
+				{
+					channel_period[channel] -= channel_portstep[channel];
+					if(channel_period[channel] < channel_portdest[channel])
+						channel_period[channel] = channel_portdest[channel];
+				}
+				channel_tempperiod[channel] = channel_period[channel];
+				break;
+
+			case 0x06: // vibrato + volume slide
+				if(effectdata & 0xf0)
+					channel_volume[channel] += ((effectdata >> 4) & 0x0f); //slide up
+				else
+					channel_volume[channel] -= effectdata; // slide down
+				channel_tempvolume[channel] = channel_volume[channel];
+				// no break, exploit fallthrough
+
+			case 0x04: // vibrato
+				/*
+				channel_tempperiod[channel]  = channel_period[channel] +	((channel_vibdepth[channel] * waves[channel_vibwave[channel] & 3][channel_vibpos[channel]]) >> 7);
+				channel_vibpos[channel]     += channel_vibspeed[channel];
+				channel_vibpos[channel]     %= 64;
+				*/
+				break;
+
+			case 0x07: // tremolo
+				/*
+				channel_tempvolume[channel]  = channel_volume[channel] +	((channel_tremdepth[channel] * waves[channel_tremwave[channel] & 3][channel_trempos[channel]]) >> 6);
+				channel_trempos[channel]    += channel_tremspeed[channel];
+				channel_trempos[channel]    %= 64;
+				*/
+				break;
+
+			case 0x0a: // volume slide
+				if(effectdata & 0xf0)
+					channel_volume[channel] += ((effectdata>>4) & 0x0f); // slide up
+				else
+					channel_volume[channel] -= effectdata; //slide down
+				channel_tempvolume[channel] = channel_volume[channel];
+				break;
+
+			case 0x0e: // E commands
+			{
+				switch(effectdata & 0xf0)
+				{
+					case 0x00: // set filter (0 on, 1 off)
+						break;
+
+					case 0x30: // glissando control (0 off, 1 on, use with tone portamento)
+						break;
+
+					case 0x40: // set vibrato waveform (0 sine, 1 ramp down, 2 square)
+						channel_vibwave[channel] = effectdata & 0x0f;
+						break;
+
+					case 0x50: // set finetune
+					{
+						int8_t tempfinetune = effectdata & 0x0f;
+						if(tempfinetune > 0x07)
+							tempfinetune |= 0xf0;
+						sample_finetune[channel_sample[channel]] = tempfinetune;
+						break;
+					}
+
+					case 0x70: // set tremolo waveform (0 sine, 1 ramp down, 2 square)
+						channel_tremwave[channel] = effectdata & 0x0f;
+						break;
+
+					// There's no effect 0xE8
+
+					case 0x90: // retrigger note + x vblanks (ticks)
+						if(((effectdata & 0x0f) == 0) || (globaltick % (effectdata & 0x0f)) == 0)
+							channel_index[channel] = channel_offset[channel];
+						break;
+
+					case 0xc0: // cut from note + x vblanks
+						if(globaltick == (effectdata & 0x0f))
+							channel_volume[channel] = 0;
+						break;
+				}
+				break;
+			}
+
+			case 0xf: // Speed / tempo
+				if(effectdata == 0)
+				{
+					done = 1;
+					break;
+				}
+				if (effectdata < 0x20) // speed (00-1F) / ticks per row (normally 6)
+				{
+					mod_speed = (effectdata & 0x1f);
+				}
+				else // tempo (20-FF)
+				{
+					//beats_per_minute = effectdata;
+					// // mod_tempo *= 6 / (effectdata & 0x1f);
+					//mod_tempo = RASTERS_PER_MINUTE / beats_per_minute / ROWS_PER_BEAT;
+					//mod_speed = mod_tempo / NUMRASTERS;
+				}
+				break;
+		}
 	}
 
 	if     (channel_volume[channel] < 0)		channel_volume[channel] = 0;
@@ -637,7 +622,7 @@ void processnote(uint8_t channel, uint8_t *data)
 
 	// TRIGGER SAMPLE
 
-	uint8_t zozwaar = channel_sample[channel];
+	uint8_t curchansamp = channel_sample[channel];
 
 	if(globaltick == 0 && triggersample == 1 && !channel_stop[channel])
 	{
@@ -646,7 +631,7 @@ void processnote(uint8_t channel, uint8_t *data)
 
 		poke(0xd720 + ch_ofs, 0x00);													// Stop playback while loading new sample data
 
-		uint32_t sample_adr = sample_addr[zozwaar] + channel_offset[channel];
+		uint32_t sample_adr = sample_addr[curchansamp] + channel_offset[channel];
 
 		sample_address0 = (sample_adr >>  0) & 0xff;
 		sample_address1 = (sample_adr >>  8) & 0xff;
@@ -660,23 +645,23 @@ void processnote(uint8_t channel, uint8_t *data)
 		poke(0xd72b + ch_ofs, sample_address1);
 		poke(0xd72c + ch_ofs, sample_address2);
 
-		top_addr = sample_addr[zozwaar] + sample_lengths[zozwaar];						// Sample top address
+		top_addr = sample_addr[curchansamp] + sample_lengths[curchansamp];						// Sample top address
 		poke(0xd727 + ch_ofs, (top_addr >> 0) & 0xff);
 		poke(0xd728 + ch_ofs, (top_addr >> 8) & 0xff);
 
-		if(sample_repeatpoint[zozwaar])													// Set base addr and top addr to the looping range, if the sample has one.
+		if(sample_repeatpoint[curchansamp])													// Set base addr and top addr to the looping range, if the sample has one.
 		{
 			// start of loop
-			poke(0xd721 + ch_ofs, (((uint32_t)sample_addr[zozwaar] + 2 * sample_repeatpoint[zozwaar]                                  ) >> 0 ) & 0xff);
-			poke(0xd722 + ch_ofs, (((uint32_t)sample_addr[zozwaar] + 2 * sample_repeatpoint[zozwaar]                                  ) >> 8 ) & 0xff);
-			poke(0xd723 + ch_ofs, (((uint32_t)sample_addr[zozwaar] + 2 * sample_repeatpoint[zozwaar]                                  ) >> 16) & 0xff);
+			poke(0xd721 + ch_ofs, (((uint32_t)sample_addr[curchansamp] + 2 * sample_repeatpoint[curchansamp]                                  ) >> 0 ) & 0xff);
+			poke(0xd722 + ch_ofs, (((uint32_t)sample_addr[curchansamp] + 2 * sample_repeatpoint[curchansamp]                                  ) >> 8 ) & 0xff);
+			poke(0xd723 + ch_ofs, (((uint32_t)sample_addr[curchansamp] + 2 * sample_repeatpoint[curchansamp]                                  ) >> 16) & 0xff);
 
 			// Top addr
-			poke(0xd727 + ch_ofs, (((uint16_t)sample_addr[zozwaar] + 2 * (sample_repeatpoint[zozwaar] + sample_repeatlength[zozwaar] - 1)) >> 0 ) & 0xff);
-			poke(0xd728 + ch_ofs, (((uint16_t)sample_addr[zozwaar] + 2 * (sample_repeatpoint[zozwaar] + sample_repeatlength[zozwaar] - 1)) >> 8 ) & 0xff);
+			poke(0xd727 + ch_ofs, (((uint16_t)sample_addr[curchansamp] + 2 * (sample_repeatpoint[curchansamp] + sample_repeatlength[curchansamp] - 1)) >> 0 ) & 0xff);
+			poke(0xd728 + ch_ofs, (((uint16_t)sample_addr[curchansamp] + 2 * (sample_repeatpoint[curchansamp] + sample_repeatlength[curchansamp] - 1)) >> 8 ) & 0xff);
 		}
 
-		if (sample_repeatpoint[zozwaar])
+		if (sample_repeatpoint[curchansamp])
 			poke(0xd720 + ch_ofs, 0xc2);												// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
 		else
 			poke(0xd720 + ch_ofs, 0x82);												// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
