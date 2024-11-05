@@ -4,27 +4,6 @@
 #include "registers.h"
 #include "dma.h"
 
-/*
-																							NoteEffects		Note
-
-	0 - Normal play or Arpeggio             0xy : x-first halfnote add, y-second			x				x
-	1 - Slide Up                            1xx : upspeed									x				-
-	2 - Slide Down                          2xx : downspeed									x				-
-	3 - Tone Portamento                     3xx : up/down speed								x				x
-	4 - Vibrato                             4xy : x-speed,   y-depth						x				x
-	5 - Tone Portamento + Volume Slide      5xy : x-upspeed, y-downspeed					x				-
-	6 - Vibrato + Volume Slide              6xy : x-upspeed, y-downspeed					x				-
-	7 - Tremolo                             7xy : x-speed,   y-depth						x				x
-	8 - NOT USED																			-				-
-	9 - Set SampleOffset                    9xx : offset (23 -> 2300)						-				-
-	A - VolumeSlide                         Axy : x-upspeed, y-downspeed					x				-
-	B - Position Jump                       Bxx : songposition								-				x
-	C - Set Volume                          Cxx : volume, 00-40								-				x
-	D - Pattern Break                       Dxx : break position in next patt				-				x
-	E - E-Commands                          Exy : see below...								x				x
-	F - Set Speed                           Fxx : speed (00-1F) / tempo (20-FF)				x				-
-*/
-
 #define MAX_INSTRUMENTS						32
 #define NUMRASTERS							(uint32_t)(2 * 312)
 #define RASTERS_PER_SECOND					(uint32_t)(NUMRASTERS * 50)	// PAL 0-311, NTSC 0-262
@@ -114,7 +93,6 @@ uint8_t			loop						= 1;
 uint8_t			beats_per_minute			= 125;
 uint8_t			curpattern;
 uint8_t			song_loop_point;			// unused
-uint16_t		top_addr;
 
 uint8_t			arpeggiocounter;
 
@@ -160,6 +138,8 @@ uint16_t		channel_offsetmem			[4];
 
 uint8_t			freqlo;
 uint8_t			freqhi;
+
+uint16_t		sample_end_addr;
 
 uint8_t*		sample_address_ptr;
 uint8_t			sample_address0;
@@ -646,17 +626,6 @@ void processnote(uint8_t channel, uint8_t *data)
 
 		poke(0xd720 + ch_ofs, 0x00);													// Stop playback while loading new sample data
 
-		// D721 55073 CH0BADDRLSB
-		// D722 55074 CH0BADDRMSB
-		// D723 55075 CH0BADDRBNK
-
-		// D727 55079 CH0TADDRLSB
-		// D728 55080 CH0TADDRMSB
-
-		// D72A 55082 CH0CURADDRLSB
-		// D72B 55083 CH0CURADDRMSB
-		// D72C 55084 CH0CURADDRBNK
-
 		uint32_t sample_adr = sample_addr[curchansamp] + channel_offset[channel];
 
 		sample_address0 = (sample_adr >>  0) & 0xff;
@@ -671,14 +640,12 @@ void processnote(uint8_t channel, uint8_t *data)
 		poke(0xd72b + ch_ofs, sample_address1);
 		poke(0xd72c + ch_ofs, sample_address2);
 
-		// Top addr
-		top_addr = sample_addr[curchansamp] + sample_lengths[curchansamp];				// Sample top address
-		poke(0xd727 + ch_ofs, (top_addr >> 0) & 0xff);
-		poke(0xd728 + ch_ofs, (top_addr >> 8) & 0xff);
+		sample_end_addr = sample_addr[curchansamp] + sample_lengths[curchansamp];		// Sample top address
+		poke(0xd727 + ch_ofs, (sample_end_addr >> 0) & 0xff);
+		poke(0xd728 + ch_ofs, (sample_end_addr >> 8) & 0xff);
 
 		if(sample_repeatpoint[curchansamp])												// Set base addr and top addr to the looping range, if the sample has one.
 		{
-			// start of loop
 			poke(0xd721 + ch_ofs, (((uint32_t)sample_addr[curchansamp] + 2 * sample_repeatpoint[curchansamp]                                  ) >> 0 ) & 0xff);
 			poke(0xd722 + ch_ofs, (((uint32_t)sample_addr[curchansamp] + 2 * sample_repeatpoint[curchansamp]                                  ) >> 8 ) & 0xff);
 			poke(0xd723 + ch_ofs, (((uint32_t)sample_addr[curchansamp] + 2 * sample_repeatpoint[curchansamp]                                  ) >> 16) & 0xff);
