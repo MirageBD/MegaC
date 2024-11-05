@@ -92,6 +92,16 @@ uint8_t			beats_per_minute			= 125;
 uint8_t			curpattern;
 uint8_t			song_loop_point;			// unused
 
+// TEMP VALUES FOR PLAYNOTE ----------------------------------
+
+uint8_t			freqlo;
+uint8_t			freqhi;
+uint32_t		sample_adr;
+uint16_t		sample_end_addr;
+uint8_t			sample_address0;
+uint8_t			sample_address1;
+uint8_t			sample_address2;
+
 // SAMPLE DATA FOR ALL INSTRUMENTS ---------------------------
 
 uint16_t		sample_lengths				[MAX_INSTRUMENTS];
@@ -129,17 +139,6 @@ int8_t			channel_looppoint			[4];
 int8_t			channel_loopcount			[4];
 uint16_t		channel_offset				[4];
 uint16_t		channel_offsetmem			[4];
-
-// TEMP VALUES FOR PLAYNOTE ----------------------------------
-
-uint8_t			freqlo;
-uint8_t			freqhi;
-uint16_t		sample_end_addr;
-uint8_t*		sample_address_ptr;
-uint8_t			sample_address0;
-uint8_t			sample_address1;
-uint8_t			sample_address2;
-uint8_t			sample_address3;
 
 // ------------------------------------------------------------------------------------
 
@@ -568,14 +567,12 @@ void processnote(uint8_t channel, uint8_t *data)
 	MATH.MULTINB2 = 0;
 	MATH.MULTINB3 = 0;
 
+	// wait 20 cycles at most for DIV calculation to finish
 	__asm(
 		" lda 0xd020\n"
 		" sta 0xd020\n"
 		" lda 0xd020\n"
 		" sta 0xd020\n"
-		" lda 0xd020\n"
-		" sta 0xd020\n"
-		" lda 0xd020\n"
 		" sta 0xd020"
 	);
 
@@ -620,35 +617,36 @@ void processnote(uint8_t channel, uint8_t *data)
 
 		poke(0xd720 + ch_ofs, 0x00);													// Stop playback while loading new sample data
 
-		uint32_t sample_adr = sample_addr[curchansamp] + channel_offset[channel];
-
+		sample_adr = sample_addr[curchansamp] + channel_offset[channel];
 		sample_address0 = (sample_adr >>  0) & 0xff;
 		sample_address1 = (sample_adr >>  8) & 0xff;
 		sample_address2 = (sample_adr >> 16) & 0xff;
-		sample_address3 = (sample_adr >> 24) & 0xff;
 
-		poke(0xd721 + ch_ofs, sample_address0);											// Load sample address into base and current addr
-		poke(0xd722 + ch_ofs, sample_address1);
-		poke(0xd723 + ch_ofs, sample_address2);
-		poke(0xd72a + ch_ofs, sample_address0);
+		poke(0xd72a + ch_ofs, sample_address0);											// Load sample address into current addr to set start address for playback
 		poke(0xd72b + ch_ofs, sample_address1);
 		poke(0xd72c + ch_ofs, sample_address2);
 
-		sample_end_addr = sample_addr[curchansamp] + sample_lengths[curchansamp];		// Sample top address
-		poke(0xd727 + ch_ofs, (sample_end_addr >> 0) & 0xff);
-		poke(0xd728 + ch_ofs, (sample_end_addr >> 8) & 0xff);
+		sample_end_addr = sample_addr[curchansamp] + sample_lengths[curchansamp];		// Sample end address
+		sample_address0 = (sample_end_addr >>  0) & 0xff;
+		sample_address1 = (sample_end_addr >>  8) & 0xff;
+		poke(0xd727 + ch_ofs, sample_address0);
+		poke(0xd728 + ch_ofs, sample_address1);
 
-		if(sample_repeatpoint[curchansamp])												// Set base addr and top addr to the looping range, if the sample has one.
+		if(sample_repeatpoint[curchansamp])
 		{
-			poke(0xd721 + ch_ofs, (((uint32_t)sample_addr[curchansamp] + 2 * sample_repeatpoint[curchansamp]                                  ) >> 0 ) & 0xff);
-			poke(0xd722 + ch_ofs, (((uint32_t)sample_addr[curchansamp] + 2 * sample_repeatpoint[curchansamp]                                  ) >> 8 ) & 0xff);
-			poke(0xd723 + ch_ofs, (((uint32_t)sample_addr[curchansamp] + 2 * sample_repeatpoint[curchansamp]                                  ) >> 16) & 0xff);
+			sample_adr = (uint32_t)sample_addr[curchansamp] + 2 * sample_repeatpoint[curchansamp];
+			sample_address0 = (sample_adr >>  0) & 0xff;
+			sample_address1 = (sample_adr >>  8) & 0xff;
+			sample_address2 = (sample_adr >> 16) & 0xff;
 
-			poke(0xd720 + ch_ofs, 0xc2);												// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
+			poke(0xd721 + ch_ofs, sample_address0);										// set repeat point for repeating sample
+			poke(0xd722 + ch_ofs, sample_address1);
+			poke(0xd723 + ch_ofs, sample_address2);
+			poke(0xd720 + ch_ofs, 0b11000010);											// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
 		}
 		else
 		{
-			poke(0xd720 + ch_ofs, 0x82);												// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
+			poke(0xd720 + ch_ofs, 0b10000010);											// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
 		}
 
 		poke(0xd711, 0b10010000);														// Enable audio dma, enable bypass of audio mixer
