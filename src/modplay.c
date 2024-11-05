@@ -72,6 +72,20 @@ uint8_t			inrepeat;
 uint8_t			addflag;
 uint8_t			arpeggiocounter;
 
+uint8_t			nextspeed;
+uint8_t			nexttempo;
+uint8_t			loop						= 1;
+uint8_t			beats_per_minute			= 125;
+uint8_t			curpattern;
+uint8_t			song_loop_point;			// unused
+
+uint8_t			freqlo;
+uint8_t			freqhi;
+uint32_t		sample_adr;
+uint16_t		sample_end_addr;
+uint8_t			sample_address0;
+uint8_t			sample_address1;
+uint8_t			sample_address2;
 
 // MOD DATA FOR 1 MOD ----------------------------------------
 
@@ -85,22 +99,6 @@ uint16_t		mod_tempo;
 uint8_t			mod_patternlist[128];
 uint8_t			mod_tmpbuf[23];
 uint8_t			currowdata[16];				// data for current pattern
-uint8_t			nextspeed;
-uint8_t			nexttempo;
-uint8_t			loop						= 1;
-uint8_t			beats_per_minute			= 125;
-uint8_t			curpattern;
-uint8_t			song_loop_point;			// unused
-
-// TEMP VALUES FOR PLAYNOTE ----------------------------------
-
-uint8_t			freqlo;
-uint8_t			freqhi;
-uint32_t		sample_adr;
-uint16_t		sample_end_addr;
-uint8_t			sample_address0;
-uint8_t			sample_address1;
-uint8_t			sample_address2;
 
 // SAMPLE DATA FOR ALL INSTRUMENTS ---------------------------
 
@@ -603,7 +601,7 @@ void processnote(uint8_t channel, uint8_t *data)
 	else
 	{
 		poke(0xd729 + ch_ofs,  channel_tempvolume[channel]);							// CH0VOLUME
-		poke(0xd71c + channel, channel_tempvolume[channel]);							// CH0RVOL
+		poke(0xd71c + channel, channel_tempvolume[channel] >> 1);						// CH0RVOL
 	}
 
 	// TRIGGER SAMPLE
