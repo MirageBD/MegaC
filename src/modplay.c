@@ -5,6 +5,8 @@
 // tempo?? speed??
 // reset function
 
+// change sample_lengths[] so it already has the correct 16bit value for mega65
+
 #include <calypsi/intrinsics6502.h>
 #include <stdint.h>
 #include "macros.h"
@@ -102,7 +104,7 @@ uint8_t			mp_currowdata[16];				// data for current pattern
 // SAMPLE DATA FOR ALL INSTRUMENTS ---------------------------
 
 uint16_t		sample_lengths				[MP_MAX_INSTRUMENTS];
-uint8_t			sample_finetune				[MP_MAX_INSTRUMENTS];
+int8_t			sample_finetune				[MP_MAX_INSTRUMENTS];
 uint8_t			sample_vol					[MP_MAX_INSTRUMENTS];
 uint16_t		sample_repeatpoint			[MP_MAX_INSTRUMENTS];
 uint16_t		sample_repeatlength			[MP_MAX_INSTRUMENTS];
@@ -500,7 +502,7 @@ void mp_processnote(uint8_t channel, uint8_t *data)
 						channel_vibwave[channel] = effectdata & 0x0f;
 						break;
 
-					case 0x50: // set finetune
+					case 0x50: // set finetune // MODSPEC SAYS THIS IS 'SET LOOP POINT'???
 					{
 						int8_t tempfinetune = effectdata & 0x0f;
 						if(tempfinetune > 0x07)
@@ -564,6 +566,8 @@ void mp_processnote(uint8_t channel, uint8_t *data)
 		channel_deltick[channel] = 0;
 	}
 
+	uint8_t curchansamp = channel_sample[channel];
+
 	// SET FREQUENCY
 
 	MATH.MULTINA0 = 0xff;																// calculate frequency // freq = 0xFFFFL / period
@@ -571,8 +575,13 @@ void mp_processnote(uint8_t channel, uint8_t *data)
 	MATH.MULTINA2 = 0;
 	MATH.MULTINA3 = 0;
 
-	MATH.MULTINB0 = (channel_tempperiod[channel] >> 0) & 0xff;
-	MATH.MULTINB1 = (channel_tempperiod[channel] >> 8) & 0xff;
+	uint16_t finetunedperiod = channel_tempperiod[channel];
+	
+	if(sample_finetune[curchansamp] != 0)
+		finetunedperiod -= 8 * sample_finetune[curchansamp];
+
+	MATH.MULTINB0 = (finetunedperiod >> 0) & 0xff;
+	MATH.MULTINB1 = (finetunedperiod >> 8) & 0xff;
 	MATH.MULTINB2 = 0;
 	MATH.MULTINB3 = 0;
 
@@ -598,7 +607,7 @@ void mp_processnote(uint8_t channel, uint8_t *data)
 	MATH.MULTINB2 = 0;
 	MATH.MULTINB3 = 0;
 
-	poke(0xd724 + ch_ofs, MATH.MULTOUT2);												// Pick results from output / 2^16
+	poke(0xd724 + ch_ofs, MATH.MULTOUT2);													// Pick results from output / 2^16
 	poke(0xd725 + ch_ofs, MATH.MULTOUT3);
 	poke(0xd726 + ch_ofs, 0);
 
@@ -606,40 +615,32 @@ void mp_processnote(uint8_t channel, uint8_t *data)
 
 	if(channel_stop[channel])
 	{
-		poke(0xd729 + ch_ofs,  0);														// CH0VOLUME
-		poke(0xd71c + channel, 0);														// CH0RVOL
+		poke(0xd729 + ch_ofs,  0);															// CH0VOLUME
+		poke(0xd71c + channel, 0);															// CH0RVOL
 	}
 	else
 	{
-		poke(0xd729 + ch_ofs,  channel_tempvolume[channel]);							// CH0VOLUME
-		poke(0xd71c + channel, channel_tempvolume[channel] >> 1);						// CH0RVOL
+		poke(0xd729 + ch_ofs,  channel_tempvolume[channel]);								// CH0VOLUME
+		poke(0xd71c + channel, channel_tempvolume[channel] >> 1);							// CH0RVOL
 	}
 
 	// TRIGGER SAMPLE
-
-	uint8_t curchansamp = channel_sample[channel];
 
 	if(mp_globaltick == 0 && triggersample == 1 && !channel_stop[channel])
 	{
 		if(mp_enabled_channels[channel] == 0)
 			return;
 
-		poke(0xd720 + ch_ofs, 0x00);													// Stop playback while loading new sample data
+		poke(0xd720 + ch_ofs, 0x00);														// Stop playback while loading new sample data
 
 		sample_adr = sample_addr[curchansamp] + channel_offset[channel];
 		sample_address0 = (sample_adr >>  0) & 0xff;
 		sample_address1 = (sample_adr >>  8) & 0xff;
 		sample_address2 = (sample_adr >> 16) & 0xff;
 
-		poke(0xd72a + ch_ofs, sample_address0);											// Load sample address into current addr to set start address for playback
+		poke(0xd72a + ch_ofs, sample_address0);												// Load sample address into current addr to set start address for playback
 		poke(0xd72b + ch_ofs, sample_address1);
 		poke(0xd72c + ch_ofs, sample_address2);
-
-		sample_end_addr = sample_addr[curchansamp] + sample_lengths[curchansamp];		// Sample end address
-		sample_address0 = (sample_end_addr >>  0) & 0xff;
-		sample_address1 = (sample_end_addr >>  8) & 0xff;
-		poke(0xd727 + ch_ofs, sample_address0);
-		poke(0xd728 + ch_ofs, sample_address1);
 
 		if(sample_repeatpoint[curchansamp])
 		{
@@ -647,18 +648,30 @@ void mp_processnote(uint8_t channel, uint8_t *data)
 			sample_address0 = (sample_adr >>  0) & 0xff;
 			sample_address1 = (sample_adr >>  8) & 0xff;
 			sample_address2 = (sample_adr >> 16) & 0xff;
-
-			poke(0xd721 + ch_ofs, sample_address0);										// set repeat point for repeating sample
+			poke(0xd721 + ch_ofs, sample_address0);											// set repeat point for repeating sample
 			poke(0xd722 + ch_ofs, sample_address1);
 			poke(0xd723 + ch_ofs, sample_address2);
-			poke(0xd720 + ch_ofs, 0b11000010);											// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
+
+			sample_end_addr = sample_adr + 2 * sample_repeatlength[curchansamp];			// Sample loop end address
+			sample_address0 = (sample_end_addr >>  0) & 0xff;
+			sample_address1 = (sample_end_addr >>  8) & 0xff;
+			poke(0xd727 + ch_ofs, sample_address0);
+			poke(0xd728 + ch_ofs, sample_address1);
+
+			poke(0xd720 + ch_ofs, 0b11000010);												// Enable playback +   looping of channel 0, 8-bit, no unsigned samples
 		}
 		else
 		{
-			poke(0xd720 + ch_ofs, 0b10000010);											// Enable playback+ nolooping of channel 0, 8-bit, no unsigned samples
+			sample_end_addr = sample_addr[curchansamp] + sample_lengths[curchansamp];			// Sample end address
+			sample_address0 = (sample_end_addr >>  0) & 0xff;
+			sample_address1 = (sample_end_addr >>  8) & 0xff;
+			poke(0xd727 + ch_ofs, sample_address0);
+			poke(0xd728 + ch_ofs, sample_address1);
+
+			poke(0xd720 + ch_ofs, 0b10000010);												// Enable playback + nolooping of channel 0, 8-bit, no unsigned samples
 		}
 
-		poke(0xd711, 0b10010000);														// Enable audio dma, enable bypass of audio mixer
+		poke(0xd711, 0b10010000);															// Enable audio dma, enable bypass of audio mixer
 	}
 }
 
@@ -774,9 +787,10 @@ void modplay_init(uint32_t address)
 		sample_lengths      [i] = mod_tmpbuf[1] + (mod_tmpbuf[0] << 8);
 		sample_lengths      [i] <<= 1;													// Redenominate instrument length into bytes
 
+		// finetune is a signed-4bit-number. convert to signed-8-bit
 		int8_t tempfinetune = mod_tmpbuf[2] & 0x0f;
-		if(tempfinetune > 0x07)
-			tempfinetune |= 0xf0;
+		if(tempfinetune > 0x07) //0b00000111
+			tempfinetune |= 0xf0; // 0b11110000
 
 		sample_finetune     [i] = tempfinetune;
 		sample_vol          [i] = mod_tmpbuf[3];										// Instrument volume
