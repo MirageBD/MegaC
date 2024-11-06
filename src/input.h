@@ -25,9 +25,6 @@
 #define KEYBOARD_F5				(0*8 + 6)
 #define KEYBOARD_F7				(0*8 + 3)
 
-void process_input();
-
-extern uint8_t keyboard_pressed;
-extern uint8_t keyboard_toascii[];
+void keyboard_update();
 
 #endif

@@ -67,10 +67,8 @@
 	+---+--------+--------+--------+--------+--------+--------+--------+--------+
 */
 
-uint8_t keyboard_pressed;
-uint8_t keyboard_prevpressed;
-
-// uint8_t keyboard_columnkeys[9];
+uint8_t keyboard_pressed = 0xff;
+uint8_t keyboard_prevpressed = 0xff;
 
 uint8_t keyboard_toascii[] =
 {
@@ -88,13 +86,11 @@ uint8_t keyboard_toascii[] =
 	 0,  0,  0,  0,  0,  0,  0,  0, // 9
 };
 
-
-void process_input()
+void keyboard_update()
 {
 	keyboard_prevpressed = keyboard_pressed;
 
 	keyboard_pressed = 0xff;
-
 	for(int column = 0; column < 9; column++)
 	{
 		KEYSCAN.KEYMATRIXSEL = column;
@@ -104,8 +100,26 @@ void process_input()
 		{
 			if((keys & 0x01) == 1)
 				keyboard_pressed = row + (column << 3);
-
 			keys >>= 1;
 		}
 	}
+}
+
+uint8_t keyboard_keyreleased(uint8_t key)
+{
+	if(keyboard_pressed == 0xff) // no key pressed
+	{
+		if(keyboard_prevpressed != 0xff) // but there was one previously
+			if(keyboard_toascii[keyboard_prevpressed] == key)
+				return 1;
+	}
+	return 0;
+}
+
+void keyboard_test()
+{
+	if(keyboard_keyreleased(1) == 1) // if 'a' pressed
+		poke(0xd021, peek(0xd021) + 1); // increase screen colour
+	else
+		poke(0xd020, 0);
 }
