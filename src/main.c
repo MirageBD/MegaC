@@ -6,6 +6,7 @@
 #include "modplay.h"
 #include "iffl.h"
 #include "irqload.h"
+#include "input.h"
 
 extern void irq_fastload();
 extern void irq_main();

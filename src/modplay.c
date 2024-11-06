@@ -662,7 +662,7 @@ void mp_processnote(uint8_t channel, uint8_t *data)
 		}
 		else
 		{
-			sample_end_addr = sample_addr[curchansamp] + sample_lengths[curchansamp];			// Sample end address
+			sample_end_addr = sample_addr[curchansamp] + sample_lengths[curchansamp];		// Sample end address
 			sample_address0 = (sample_end_addr >>  0) & 0xff;
 			sample_address1 = (sample_end_addr >>  8) & 0xff;
 			poke(0xd727 + ch_ofs, sample_address0);

@@ -422,8 +422,8 @@ typedef struct _SID					// SID1=0xd400, SID2=0xd420, SID3=0xd440, SID4=0xd460
 
 typedef struct _KEYSCAN				// 0xd613
 {
-	uint8_t		CRTACSCNT;			// 0xd613
-	uint8_t		MATRIXPEEK;			// 0xd614
+	uint8_t		KEYMATRIXPEEK;		// 0xd613
+	uint8_t		KEYMATRIXSEL;		// 0xd614
 } _KEYSCAN;
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,7 @@
 			.extern modplay_play
+			.extern process_input
+			.extern keyboard_pressed
+			.extern keyboard_toascii
 
 ; ------------------------------------------------------------------------------------
 
@@ -35,7 +38,18 @@ raswait2:	cpx 0xd012
 			lda #0x00
 			sta 0xd020
 
-			plz
+			jsr process_input
+
+			ldx keyboard_pressed
+			lda keyboard_toascii,x
+			sta 0xd020
+
+			;cmp #0x01					; is it 'a'?
+			;bne irq_end
+			;lda #0x01
+			;sta 0xd020
+
+irq_end		plz
 			ply
 			plx
 			pla
