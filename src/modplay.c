@@ -577,8 +577,8 @@ void mp_processnote(uint8_t channel, uint8_t *data)
 
 	uint16_t finetunedperiod = channel_tempperiod[channel];
 	
-	if(sample_finetune[curchansamp] != 0)
-		finetunedperiod -= 8 * sample_finetune[curchansamp];
+	//if(sample_finetune[curchansamp] != 0)
+	//	finetunedperiod -= 8 * sample_finetune[curchansamp];
 
 	MATH.MULTINB0 = (finetunedperiod >> 0) & 0xff;
 	MATH.MULTINB1 = (finetunedperiod >> 8) & 0xff;
