@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include "input.h"
+#include "keyboard.h"
 #include "registers.h"
 #include "modplay.h"
 #include "macros.h"
