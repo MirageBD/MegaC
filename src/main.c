@@ -2,14 +2,17 @@
 
 #include "macros.h"
 #include "registers.h"
+#include "hyppo.h"
 #include "constants.h"
 #include "modplay.h"
 #include "iffl.h"
 #include "irqload.h"
 #include "keyboard.h"
+#include "sdc.h"
 
 extern void irq_fastload();
 extern void irq_main();
+extern void sdc_opendir();
 
 void main()
 {
@@ -45,9 +48,13 @@ void main()
 	fl_waiting();
 	
 	floppy_iffl_fast_load_init("DATA");
-	floppy_iffl_fast_load(); 								// chars
-	floppy_iffl_fast_load();								// palette
-	floppy_iffl_fast_load();								// song
+	floppy_iffl_fast_load(); 									// chars
+	floppy_iffl_fast_load();									// palette
+	floppy_iffl_fast_load();									// song
+
+	sdc_setbufferaddressmsb(0x04);								// set SDC buffer address to 0x0800
+	sdc_setprocessdirentryptr((uint16_t)(&sdc_processdirentry));	// set dir entry process pointer
+	sdc_opendir();
 
 	// ------------------------------------------------------------------------------------
 
