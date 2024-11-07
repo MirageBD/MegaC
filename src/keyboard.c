@@ -120,7 +120,6 @@ void keyboard_test()
 {
 	if(keyboard_keyreleased(1) == 1) // if 'a' pressed
 	{
-		while(1) {}
 		poke(0xd021, peek(0xd021) + 1); // increase screen colour
 	}
 }
