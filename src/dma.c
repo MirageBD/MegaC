@@ -2,14 +2,6 @@
 #include "registers.h"
 #include "macros.h"
 
-void run_dma_job(__far char *ptr)
-{
-	DMA.ADDRMB   = 0;			  
-	DMA.ADDRBANK = (char)((unsigned long)ptr >> 16);
-	DMA.ADDRMSB  = (char)((unsigned long)ptr >> 8);
-	DMA.ETRIG    = (char)((unsigned long)ptr & 0xff);
-}
-
 // stuff originally added for lcopy
 struct dmagic_dmalist
 {
@@ -34,10 +26,24 @@ void do_dma(void)
 
 void dma_lcopy(long source_address, long destination_address, unsigned int count)
 {
-	dmalist.command     = 0x00; // copy
+	dmalist.command			= 0x00; // copy
+	dmalist.count			= count;
+	dmalist.source_addr		= (source_address & 0xffff);
+	dmalist.source_bank		= (source_address >> 16) & 0x7f;
+	dmalist.dest_addr		= (destination_address & 0xffff);
+	dmalist.dest_bank		= (destination_address >> 16) & 0x7f;
+
+	do_dma();
+
+	return;
+}
+
+void dma_lfill(long destination_address, unsigned char value, unsigned int count)
+{
+	dmalist.command     = 0x03; // fill
 	dmalist.count       = count;
-	dmalist.source_addr = (source_address & 0xffff);
-	dmalist.source_bank = (source_address >> 16) & 0x7f;
+	dmalist.source_addr = value;
+	dmalist.source_bank = 0;
 	dmalist.dest_addr   = (destination_address & 0xffff);
 	dmalist.dest_bank   = (destination_address >> 16) & 0x7f;
 

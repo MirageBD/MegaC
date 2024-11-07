@@ -708,10 +708,11 @@ void modplay_play()
 
 	if(mp_globaltick == 0)
 	{
-		mp_patternset = 0;
-		dma_lcopy(mod_addr + mod_song_offset + (mod_patternlist[mp_pattern] << 10) + (mp_row << 4), (uint32_t)mp_currowdata, 16);
+		mp_patternset	= 0;
 		mp_currow		= mp_row;
 		mp_curpattern	= mp_pattern;
+
+		dma_lcopy(mod_addr + mod_song_offset + (mod_patternlist[mp_curpattern] << 10) + (mp_currow << 4), (uint32_t)mp_currowdata, 16);
 
 		mp_preprocesseffects(&mp_currowdata[0 ]);
 		mp_preprocesseffects(&mp_currowdata[4 ]);
