@@ -119,7 +119,8 @@ uint8_t keyboard_keyreleased(uint8_t key)
 void keyboard_test()
 {
 	if(keyboard_keyreleased(1) == 1) // if 'a' pressed
+	{
+		while(1) {}
 		poke(0xd021, peek(0xd021) + 1); // increase screen colour
-	else
-		poke(0xd020, 0);
+	}
 }

@@ -8,10 +8,95 @@
 #include "irqload.h"
 #include "keyboard.h"
 #include "sdc.h"
+#include "dma.h"
 
 extern void irq_fastload();
 extern void irq_main();
 extern void sdc_opendir();
+
+dma_job dma_clearcolorram1 =
+{
+	.type					= 0x0a,
+	.sbank_token			= 0x80,
+	.sbank					= 0x00,
+	.dbank_token			= 0x81,
+	.dskipratefrac_token	= 0x84,
+	.dskipratefrac			= 0x00,
+	.dskiprate_token		= 0x85,
+	.dskiprate				= 0x02,
+	.dbank					= ((SAFE_COLOR_RAM) >> 20),
+	.end_options			= 0x00,
+	.command				= 0b00000011, // fill, no chain
+	.count					= (RRBSCREENWIDTH*50),
+	.source					= 0b0000000000001000, // 00001000 = NCM chars
+	.source_bank			= 0x00,
+	.destination			= ((SAFE_COLOR_RAM) & 0xffff),
+	.destination_bank		= (((SAFE_COLOR_RAM) >> 16) & 0x0f),
+	.modulo					= 0x0000
+};
+
+dma_job dma_clearcolorram2 =
+{
+	.type					= 0x0a,
+	.sbank_token			= 0x80,
+	.sbank					= 0x00,
+	.dbank_token			= 0x81,
+	.dskipratefrac_token	= 0x84,
+	.dskipratefrac			= 0x00,
+	.dskiprate_token		= 0x85,
+	.dskiprate				= 0x02,
+	.dbank					= ((SAFE_COLOR_RAM + 1) >> 20),
+	.end_options			= 0x00,
+	.command				= 0b00000011, // fill, no chain
+	.count					= (RRBSCREENWIDTH*50),
+	.source					= 0b0000000000001111, // 00001111 = $0f = pixels with value $0f take on the colour value of $0f as well
+	.source_bank			= 0x00,
+	.destination			= ((SAFE_COLOR_RAM + 1) & 0xffff),
+	.destination_bank		= (((SAFE_COLOR_RAM + 1) >> 16) & 0x0f),
+	.modulo					= 0x0000
+};
+
+dma_job dma_clearscreen1 =
+{
+	.type					= 0x0a,
+	.sbank_token			= 0x80,
+	.sbank					= 0x00,
+	.dbank_token			= 0x81,
+	.dskipratefrac_token	= 0x84,
+	.dskipratefrac			= 0x00,
+	.dskiprate_token		= 0x85,
+	.dskiprate				= 0x02,
+	.dbank					= ((SCREEN) >> 20),
+	.end_options			= 0x00,
+	.command				= 0b00000011, // fill, no chain
+	.count					= (RRBSCREENWIDTH*50),
+	.source					= (((FONTCHARMEM/64 + 10) >> 0)) & 0xff,
+	.source_bank			= 0x00,
+	.destination			= ((SCREEN) & 0xffff),
+	.destination_bank		= (((SCREEN) >> 16) & 0x0f),
+	.modulo					= 0x0000
+};
+
+dma_job dma_clearscreen2 =
+{
+	.type					= 0x0a,
+	.sbank_token			= 0x80,
+	.sbank					= 0x00,
+	.dbank_token			= 0x81,
+	.dskipratefrac_token	= 0x84,
+	.dskipratefrac			= 0x00,
+	.dskiprate_token		= 0x85,
+	.dskiprate				= 0x02,
+	.dbank					= ((SCREEN + 1) >> 20),
+	.end_options			= 0x00,
+	.command				= 0b00000011, // fill, no chain
+	.count					= (RRBSCREENWIDTH*50),
+	.source					= (((FONTCHARMEM/64 + 10) >> 8)) & 0xff,
+	.source_bank			= 0x00,
+	.destination			= ((SCREEN + 1) & 0xffff),
+	.destination_bank		= (((SCREEN + 1) >> 16) & 0x0f),
+	.modulo					= 0x0000
+};
 
 void setup_fastload_irq()
 {
@@ -63,11 +148,13 @@ void setup_main()
 	VIC4.FNRST    = 0;											// disable raster interrupts
 	VIC4.FNRSTCMP = 0;
 
+	VIC4.TEXTXPOSLSB = 0x50;									// set TEXTXPOS to same as SDBDRWDLSB
+
 	VIC3.H640 = 1;												// enable 640 horizontal width
 
-	//VIC4.CHR16 = 1;											// use wide character lookup (i.e. character data anywhere in memory)
+	VIC4.CHR16 = 1;												// use wide character lookup (i.e. character data anywhere in memory)
 	
-	//VIC2.MCM = 1;												// set multicolor mode
+	// VIC2.MCM = 1;												// set multicolor mode
 	
 	//VIC4.FCLRLO = 1;											// lower block, i.e. 0-255		// use NCM and FCM for all characters
 	//VIC4.FCLRHI = 1;											// everything above 255
@@ -86,21 +173,31 @@ void setup_main()
 	VIC4.SCRNPTRBNK = (SCREEN & 0xf0000) >> 16;
 	VIC4.SCRNPTRMB  = 0x0;
 
-	VIC4.COLPTR = 0x0000; // COLOR_RAM_OFFSET;					// set offset to colour ram, so we can use continuous memory
+	VIC4.COLPTR = COLOR_RAM_OFFSET;								// set offset to colour ram, so we can use continuous memory
 
-	//VIC4.CHRCOUNTMSB = RRBSCREENWIDTH >> 8;					// set RRB screenwidth and linestep
-	//VIC4.DISPROWS    = RRBSCREENWIDTH;
-	//VIC4.LINESTEP    = RRBSCREENWIDTH << 1;
-	//VIC4.CHRCOUNTLSB = RRBSCREENWIDTH;
+	run_dma_job((__far char *)&dma_clearcolorram1);
+	run_dma_job((__far char *)&dma_clearcolorram2);
 
-	/*
+	run_dma_job((__far char *)&dma_clearscreen1);
+	run_dma_job((__far char *)&dma_clearscreen2);
+
+	poke(0xe000 + (0 * RRBSCREENWIDTH2) + 0, 4 + (0 * FNTS_NUMCHARS));
+	poke(0xe000 + (1 * RRBSCREENWIDTH2) + 0, 4 + (1 * FNTS_NUMCHARS));
+
+	poke(0xe000 + (0 * RRBSCREENWIDTH2) + 2, 5 + (0 * FNTS_NUMCHARS));
+	poke(0xe000 + (1 * RRBSCREENWIDTH2) + 2, 5 + (1 * FNTS_NUMCHARS));
+
+	VIC4.CHRCOUNTMSB = RRBSCREENWIDTH >> 8;						// set RRB screenwidth and linestep
+	VIC4.DISPROWS    = RRBSCREENWIDTH;
+	VIC4.LINESTEP    = RRBSCREENWIDTH << 1;
+	VIC4.CHRCOUNTLSB = RRBSCREENWIDTH;
+
 	for(uint8_t i=0; i<255; i++)
 	{
 		poke(0xd100+i, ((uint8_t *)PALETTE)[0*256+i]);
 		poke(0xd200+i, ((uint8_t *)PALETTE)[1*256+i]);
 		poke(0xd300+i, ((uint8_t *)PALETTE)[2*256+i]);
 	}
-	*/
 
 	// enable audio dma and turn off saturation
 	AUDIO_DMA.AUDEN = 0b10000000;
@@ -114,8 +211,8 @@ void setup_main()
 
 	modplay_init(0x20000);
 
-	//VIC2.BORDERCOL = 14;
-	//VIC2.SCREENCOL = 14;
+	VIC2.BORDERCOL = 0x0f;
+	VIC2.SCREENCOL = 0x00;
 
 	CIA1.ICR = 0b01111111;										// disable interrupts
 	CIA2.ICR = 0b01111111;

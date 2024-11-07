@@ -164,18 +164,14 @@ struct mp_dmalist mp_dmalist;
 
 void mp_dmacopy(uint32_t source_address, uint32_t destination_address, uint16_t count)
 {
-	mp_dmalist.command		= 0x00; // copy
 	mp_dmalist.count		= count;
 	mp_dmalist.source_addr	= (source_address & 0xffff);
 	mp_dmalist.source_bank	= (source_address >> 16) & 0x7f;
 	mp_dmalist.dest_addr	= (destination_address & 0xffff);
 	mp_dmalist.dest_bank	= (destination_address >> 16) & 0x7f;
 
-	poke(0xd702, 0); // ADDRBANK
-	poke(0xd704, 0); // ADDRMB
-
-	poke(0xd701, ((uint16_t)&mp_dmalist) >> 8);
-	poke(0xd700, ((uint16_t)&mp_dmalist) & 0xff); // trigger DMA
+	DMA.ADDRMSB				= (((uint16_t)&mp_dmalist) >> 8);
+	DMA.ADDRLSBTRIG			= (((uint16_t)&mp_dmalist) & 0xff);
 }
 
 // ------------------------------------------------------------------------------------
@@ -711,6 +707,10 @@ void mp_processnote(uint8_t channel, uint8_t *data)
 
 void modplay_play()
 {
+	// setup some DMA stuff that stays the same during modplay_play
+	DMA.ADDRBANK		= 0;
+	DMA.ADDRMB			= 0;
+
 	mp_arpeggiocounter++;
 
 	if(mp_row == 64)
@@ -755,9 +755,13 @@ void modplay_play()
 		mod_tempo = mp_nexttempo;
 	}
 
+	poke(0xd020, peek(0xd020) + 16);
 	mp_processnote(0, &mp_currowdata[0 ]);
+	poke(0xd020, peek(0xd020) + 16);
 	mp_processnote(1, &mp_currowdata[4 ]);
+	poke(0xd020, peek(0xd020) + 16);
 	mp_processnote(2, &mp_currowdata[8 ]);
+	poke(0xd020, peek(0xd020) + 16);
 	mp_processnote(3, &mp_currowdata[12]);
 
 	mp_globaltick++;
@@ -788,6 +792,9 @@ void modplay_init(uint32_t address)
 {
 	uint16_t i;
 	uint8_t a, numinstruments;
+
+	// we only use copies in modplay functions, no fills, so set up one time only
+	mp_dmalist.command	= 0x00; // copy
 
 	mod_addr = address;
 

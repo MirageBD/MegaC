@@ -12,10 +12,10 @@ irq_main:
 			phy
 			phz
 
-			lda #0x01
+			lda #0x06
 			sta 0xd020
 			jsr modplay_play
-			lda #0x00
+			lda #0x0f
 			sta 0xd020
 
 			lda 0xd012
@@ -28,13 +28,13 @@ irq_main_end:
 raswait:	cmp 0xd012
 			bne raswait
 
-			lda #0x02
+			lda #0x0e
 			sta 0xd020
 			ldx 0xd012
 			inx
 raswait2:	cpx 0xd012
 			bne raswait2
-			lda #0x00
+			lda #0x0f
 			sta 0xd020
 
 			jsr keyboard_update
