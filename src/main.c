@@ -123,16 +123,26 @@ void setup_fastload_irq()
 	poke(0xd01a,0x01);											// ACK!
 }
 
-uint16_t row;
+void main_processdirentrydir()
+{
+}
+
+void main_processdirentryfile()
+{
+}
 
 void main_processdirentry()
 {
 	uint8_t* transbuf = (uint8_t *)(sdc_transferbuffermsb * 256);
 
-	for(uint16_t i=0; i<32; i++)
-		poke(SCREEN+(row*80)+i, transbuf[i] - 64);
+	for(uint16_t i=0; i<87; i++)
+		poke(SCREEN+i, transbuf[i]);
 
-	row++;
+	uint8_t isdir = ((transbuf[0x56] & 0b00010000) == 0b00010000);
+	if(isdir)
+		main_processdirentrydir();
+	else
+		main_processdirentryfile();
 }
 
 void setup_main()
