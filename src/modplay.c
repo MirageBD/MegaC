@@ -148,6 +148,38 @@ uint16_t mp_periods[36] =
 	214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120, 113,
 };
 
+// ------------------------------------------------------------------------------------
+
+struct mp_dmalist
+{
+	uint8_t		command;
+	uint16_t	count;
+	uint16_t	source_addr;
+	uint8_t		source_bank;
+	uint16_t	dest_addr;
+	uint8_t		dest_bank;
+	uint16_t	modulo;
+};
+struct mp_dmalist mp_dmalist;
+
+void mp_dmacopy(uint32_t source_address, uint32_t destination_address, uint16_t count)
+{
+	mp_dmalist.command		= 0x00; // copy
+	mp_dmalist.count		= count;
+	mp_dmalist.source_addr	= (source_address & 0xffff);
+	mp_dmalist.source_bank	= (source_address >> 16) & 0x7f;
+	mp_dmalist.dest_addr	= (destination_address & 0xffff);
+	mp_dmalist.dest_bank	= (destination_address >> 16) & 0x7f;
+
+	poke(0xd702, 0); // ADDRBANK
+	poke(0xd704, 0); // ADDRMB
+
+	poke(0xd701, ((uint16_t)&mp_dmalist) >> 8);
+	poke(0xd700, ((uint16_t)&mp_dmalist) & 0xff); // trigger DMA
+}
+
+// ------------------------------------------------------------------------------------
+
 int8_t mp_findperiod(uint16_t period)
 {
 	// this takes 6 steps at most to reach final period (36/2/2/2/2/2/2)
@@ -712,7 +744,7 @@ void modplay_play()
 		mp_currow		= mp_row;
 		mp_curpattern	= mp_pattern;
 
-		dma_lcopy(mod_addr + mod_song_offset + (mod_patternlist[mp_curpattern] << 10) + (mp_currow << 4), (uint32_t)mp_currowdata, 16);
+		mp_dmacopy(mod_addr + mod_song_offset + (mod_patternlist[mp_curpattern] << 10) + (mp_currow << 4), (uint32_t)mp_currowdata, 16);
 
 		mp_preprocesseffects(&mp_currowdata[0 ]);
 		mp_preprocesseffects(&mp_currowdata[4 ]);
@@ -759,7 +791,7 @@ void modplay_init(uint32_t address)
 
 	mod_addr = address;
 
-	dma_lcopy(mod_addr + 1080, (uint32_t)mod_tmpbuf, 4);								// Check if 15 or 31 instrument mode (M.K.)
+	mp_dmacopy(mod_addr + 1080, (uint32_t)mod_tmpbuf, 4);								// Check if 15 or 31 instrument mode (M.K.)
 
 	mod_tmpbuf[4] = 0;
 	numinstruments = 15;
@@ -784,7 +816,7 @@ void modplay_init(uint32_t address)
 		// 1 byte  - volume for sample ($00-$40)
 		// 2 bytes - repeat point in words
 		// 2 bytes - repeat length in words
-		dma_lcopy(mod_addr + 0x14 + i * 30 + 22, (uint32_t)mod_tmpbuf, 8);				// Get instrument data for plucking
+		mp_dmacopy(mod_addr + 0x14 + i * 30 + 22, (uint32_t)mod_tmpbuf, 8);				// Get instrument data for plucking
 		sample_lengths      [i] = mod_tmpbuf[1] + (mod_tmpbuf[0] << 8);
 		sample_lengths      [i] <<= 1;													// Redenominate instrument length into bytes
 
@@ -802,7 +834,7 @@ void modplay_init(uint32_t address)
 	mod_songlength = lpeek(mod_addr + 20 + numinstruments*30 + 0);
 	mp_song_loop_point = lpeek(mod_addr + 20 + numinstruments*30 + 1);
 
-	dma_lcopy(mod_addr + 20 + numinstruments * 30 + 2, (uint32_t)mod_patternlist, 128);
+	mp_dmacopy(mod_addr + 20 + numinstruments * 30 + 2, (uint32_t)mod_patternlist, 128);
 	for(i = 0; i < mod_songlength; i++)
 	{
 		if(mod_patternlist[i] > mod_numpatterns)
