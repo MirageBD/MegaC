@@ -69,7 +69,7 @@ void setup_fastload_irq()
 
 #define DIR_ENTRY_SIZE	0x57
 
-uint8_t*	direntryptr		= (uint8_t *)0x6000;
+uint8_t*	direntryptr		= (uint8_t *)0x7000;
 uint16_t	numdirentries	= 0;
 
 void main_processdirentry()
@@ -105,7 +105,7 @@ void setup_main()
 	VIC4.FNRSTCMP	= 0;
 	VIC4.CHR16		= 1;										// use wide character lookup (i.e. character data anywhere in memory)
 
-	// VIC4.TEXTXPOSLSB = 0x60;									// set TEXTXPOS to same as SDBDRWDLSB
+	VIC4.TEXTXPOSLSB = 0x50;									// set TEXTXPOS to same as SDBDRWDLSB
 	
 	// VIC2.MCM = 1;											// set multicolor mode
 	// VIC4.FCLRLO = 1;											// lower block, i.e. 0-255		// use NCM and FCM for all characters

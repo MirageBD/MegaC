@@ -86,10 +86,15 @@ void fontsys_test()
 	{
 		fnts_row = 2 * row;
 		fnts_column = 0;
-		// poke(((uint8_t *)&fnts_curpal + 1), 0x4f);
-		poke(((uint8_t *)&fnts_curpal + 1), 0x0f);
-		poke(((uint8_t *)&fnts_readchar + 1), (uint8_t)(((0x6000 + row*0x0057) >> 0) & 0xff));
-		poke(((uint8_t *)&fnts_readchar + 2), (uint8_t)(((0x6000 + row*0x0057) >> 8) & 0xff));
+		
+		uint8_t attrib = peek(0x7000 + row*0x0057 + 0x0056);
+		if((attrib & 0b00010000) == 0b00010000)
+			poke(((uint8_t *)&fnts_curpal + 1), 0x4f);
+		else
+			poke(((uint8_t *)&fnts_curpal + 1), 0x0f);
+
+		poke(((uint8_t *)&fnts_readchar + 1), (uint8_t)(((0x7000 + row*0x0057) >> 0) & 0xff));
+		poke(((uint8_t *)&fnts_readchar + 2), (uint8_t)(((0x7000 + row*0x0057) >> 8) & 0xff));
 		fontsys_asm_test();
 	}
 
