@@ -89,12 +89,7 @@ fnts_readchar:
 		phx
 		tax
 
-		clc
-		adc #.byte0 (fontcharmem / 64 + 0 * fnts_numchars)
 		sta (zp:zpscrdst1),y
-
-		txa
-		clc
 		adc #.byte0 (fontcharmem / 64 + 1 * fnts_numchars) ; 64
 		sta (zp:zpscrdst2),y
 

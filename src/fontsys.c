@@ -2,6 +2,7 @@
 #include "constants.h"
 #include "fontsys.h"
 #include "macros.h"
+#include "dmajobs.h"
 
 uint8_t fontsys_asciiremap[] =
 {
@@ -51,6 +52,14 @@ void fontsys_map()
 void fontsys_unmap()
 {
 	UNMAP_ALL
+}
+
+void fontsys_clearscreen()
+{
+	run_dma_job((__far char *)&dma_clearcolorram1);
+	run_dma_job((__far char *)&dma_clearcolorram2);
+	run_dma_job((__far char *)&dma_clearscreen1);
+	run_dma_job((__far char *)&dma_clearscreen2);
 }
 
 void fontsys_test()

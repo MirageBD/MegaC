@@ -10,94 +10,11 @@
 #include "sdc.h"
 #include "dma.h"
 #include "fontsys.h"
+#include "dmajobs.h"
 
 extern void irq_fastload();
 extern void irq_main();
 extern void sdc_opendir();
-
-dma_job dma_clearcolorram1 =
-{
-	.type					= 0x0a,
-	.sbank_token			= 0x80,
-	.sbank					= 0x00,
-	.dbank_token			= 0x81,
-	.dskipratefrac_token	= 0x84,
-	.dskipratefrac			= 0x00,
-	.dskiprate_token		= 0x85,
-	.dskiprate				= 0x02,
-	.dbank					= ((SAFE_COLOR_RAM + 0) >> 20),
-	.end_options			= 0x00,
-	.command				= 0b00000011, // fill, no chain
-	.count					= (RRBSCREENWIDTH*50),
-	.source					= 0b0000000000001000, // 00001000 = NCM chars
-	.source_bank			= 0x00,
-	.destination			= ((SAFE_COLOR_RAM + 0) & 0xffff),
-	.destination_bank		= (((SAFE_COLOR_RAM + 0) >> 16) & 0x0f),
-	.modulo					= 0x0000
-};
-
-dma_job dma_clearcolorram2 =
-{
-	.type					= 0x0a,
-	.sbank_token			= 0x80,
-	.sbank					= 0x00,
-	.dbank_token			= 0x81,
-	.dskipratefrac_token	= 0x84,
-	.dskipratefrac			= 0x00,
-	.dskiprate_token		= 0x85,
-	.dskiprate				= 0x02,
-	.dbank					= ((SAFE_COLOR_RAM + 1) >> 20),
-	.end_options			= 0x00,
-	.command				= 0b00000011, // fill, no chain
-	.count					= (RRBSCREENWIDTH*50),
-	.source					= 0b0000000000001111, // 00001111 = $0f = pixels with value $0f take on the colour value of $0f as well
-	.source_bank			= 0x00,
-	.destination			= ((SAFE_COLOR_RAM + 1) & 0xffff),
-	.destination_bank		= (((SAFE_COLOR_RAM + 1) >> 16) & 0x0f),
-	.modulo					= 0x0000
-};
-
-dma_job dma_clearscreen1 =
-{
-	.type					= 0x0a,
-	.sbank_token			= 0x80,
-	.sbank					= 0x00,
-	.dbank_token			= 0x81,
-	.dskipratefrac_token	= 0x84,
-	.dskipratefrac			= 0x00,
-	.dskiprate_token		= 0x85,
-	.dskiprate				= 0x02,
-	.dbank					= ((SCREEN) >> 20),
-	.end_options			= 0x00,
-	.command				= 0b00000011, // fill, no chain
-	.count					= (RRBSCREENWIDTH*50),
-	.source					= (((FONTCHARMEM/64 + 0 /*star=10*/) >> 0)) & 0xff,
-	.source_bank			= 0x00,
-	.destination			= ((SCREEN) & 0xffff),
-	.destination_bank		= (((SCREEN) >> 16) & 0x0f),
-	.modulo					= 0x0000
-};
-
-dma_job dma_clearscreen2 =
-{
-	.type					= 0x0a,
-	.sbank_token			= 0x80,
-	.sbank					= 0x00,
-	.dbank_token			= 0x81,
-	.dskipratefrac_token	= 0x84,
-	.dskipratefrac			= 0x00,
-	.dskiprate_token		= 0x85,
-	.dskiprate				= 0x02,
-	.dbank					= ((SCREEN + 1) >> 20),
-	.end_options			= 0x00,
-	.command				= 0b00000011, // fill, no chain
-	.count					= (RRBSCREENWIDTH*50),
-	.source					= (((FONTCHARMEM/64 + 0 /*star=10*/) >> 8)) & 0xff,
-	.source_bank			= 0x00,
-	.destination			= ((SCREEN + 1) & 0xffff),
-	.destination_bank		= (((SCREEN + 1) >> 16) & 0x0f),
-	.modulo					= 0x0000
-};
 
 void setup_fastload_irq()
 {
@@ -214,7 +131,6 @@ void setup_main()
 
 	run_dma_job((__far char *)&dma_clearcolorram1);
 	run_dma_job((__far char *)&dma_clearcolorram2);
-
 	run_dma_job((__far char *)&dma_clearscreen1);
 	run_dma_job((__far char *)&dma_clearscreen2);
 
@@ -258,7 +174,7 @@ void setup_main()
 	
 	poke(0xd01a,0x00);											// disable IRQ raster interrupts because C65 uses raster interrupts in the ROM
 
-	VIC2.RC = 0x40;												// d012 = 8
+	VIC2.RC = 0x08;												// d012 = 8
 	IRQ_VECTORS.IRQ = (volatile uint16_t)&irq_main;
 
 	poke(0xd01a,0x01);											// ACK!

@@ -7,6 +7,7 @@ void fontsys_init();
 void fontsys_map();
 void fontsys_unmap();
 void fontsys_test();
+void fontsys_clearscreen();
 
 extern void fontsys_asm_init();
 extern void fontsys_asm_test();
