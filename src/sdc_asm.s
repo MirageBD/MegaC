@@ -12,8 +12,8 @@ sdc_transferbuffermsb	.byte 0x04						; MSB of transfer area
 
 ; ----------------------------------------------------------------------------------------------------
 
-		.public sdc_opendir
-sdc_opendir:
+		.public sdc_asm_opendir
+sdc_asm_opendir:
 
 		lda #0x00
 		sta 0xd640

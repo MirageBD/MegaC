@@ -793,6 +793,16 @@ void modplay_init(uint32_t address)
 	uint16_t i;
 	uint8_t a, numinstruments;
 
+	// enable audio dma and turn off saturation
+	AUDIO_DMA.AUDEN = 0b10000000;
+	AUDIO_DMA.DBGSAT = 0b00000000;
+
+	// Stop all DMA audio first
+	AUDIO_DMA.CHANNELS[0].CONTROL = 0;
+	AUDIO_DMA.CHANNELS[1].CONTROL = 0;
+	AUDIO_DMA.CHANNELS[2].CONTROL = 0;
+	AUDIO_DMA.CHANNELS[3].CONTROL = 0;
+
 	// we only use copies in modplay functions, no fills, so set up one time only
 	mp_dmalist.command	= 0x00; // copy
 

@@ -1,6 +1,8 @@
 #ifndef _SDC_H
 #define _SDC_H
 
+extern void sdc_opendir();
+
 extern void sdc_processdirentry();
 extern void sdc_setbufferaddressmsb(uint8_t msb);
 extern void sdc_setprocessdirentryfunc(uint16_t funcptr);

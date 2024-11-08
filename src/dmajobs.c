@@ -36,7 +36,7 @@ dma_job dma_clearcolorram2 =
 	.end_options			= 0x00,
 	.command				= 0b00000011, // fill, no chain
 	.count					= (RRBSCREENWIDTH*50),
-	.source					= 0b0000000000001111, // 00001111 = $0f = pixels with value $0f take on the colour value of $0f as well
+	.source					= 0b0000000000001111, // 00000000 = $0f = pixels with value $0f take on the colour value of $0f as well
 	.source_bank			= 0x00,
 	.destination			= ((SAFE_COLOR_RAM + 1) & 0xffff),
 	.destination_bank		= (((SAFE_COLOR_RAM + 1) >> 16) & 0x0f),

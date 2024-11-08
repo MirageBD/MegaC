@@ -62,6 +62,8 @@ void fontsys_clearscreen()
 	run_dma_job((__far char *)&dma_clearscreen2);
 }
 
+uint8_t fontsys_selectedrow = 10;
+
 void fontsys_test()
 {
 	fontsys_map();
@@ -88,10 +90,14 @@ void fontsys_test()
 		fnts_column = 0;
 		
 		uint8_t attrib = peek(0x7000 + row*0x0057 + 0x0056);
+		uint8_t color = 0x0f;
 		if((attrib & 0b00010000) == 0b00010000)
-			poke(((uint8_t *)&fnts_curpal + 1), 0x4f);
-		else
-			poke(((uint8_t *)&fnts_curpal + 1), 0x0f);
+			color = 0x4f;
+
+		if(row == fontsys_selectedrow)
+			color = ((color & 0xf0) | 0x02);
+
+		poke(((uint8_t *)&fnts_curpal + 1), color);
 
 		poke(((uint8_t *)&fnts_readchar + 1), (uint8_t)(((0x7000 + row*0x0057) >> 0) & 0xff));
 		poke(((uint8_t *)&fnts_readchar + 2), (uint8_t)(((0x7000 + row*0x0057) >> 8) & 0xff));

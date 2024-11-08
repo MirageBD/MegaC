@@ -13,3 +13,8 @@ void sdc_setprocessdirentryfunc(uint16_t funcptr)
 	poke(((uint8_t *)&sdc_processdirentryptr + 1), (uint8_t)((funcptr >> 0) & 0xff));
 	poke(((uint8_t *)&sdc_processdirentryptr + 2), (uint8_t)((funcptr >> 8) & 0xff));
 }
+
+void sdc_opendir()
+{
+	sdc_asm_opendir();
+}
