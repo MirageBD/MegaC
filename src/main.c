@@ -288,20 +288,6 @@ void main()
 	setup_main();
 	CLI
 
-	fontsys_map();
-
-	for(uint16_t row = 0; row < 25; row++)
-	{
-		fnts_row = 2 * row;
-		fnts_column = 10;
-		poke(((uint8_t *)&fnts_curpal + 1), 0x4f);
-		poke(((uint8_t *)&fnts_readchar + 1), (uint8_t)(((0x6000 + row*0x0057) >> 0) & 0xff));
-		poke(((uint8_t *)&fnts_readchar + 2), (uint8_t)(((0x6000 + row*0x0057) >> 8) & 0xff));
-		fontsys_test();
-	}
-
-	fontsys_unmap();
-
 	while(1)
 	{
 		__asm

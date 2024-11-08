@@ -1,6 +1,7 @@
 			.extern modplay_play
 			.extern keyboard_update
 			.extern keyboard_test
+			.extern fontsys_test
 
 ; ------------------------------------------------------------------------------------
 
@@ -39,6 +40,11 @@ raswait2:	cpx 0xd012
 
 			jsr keyboard_update
 			jsr keyboard_test
+
+			lda #0x01
+			sta 0xd020
+
+			jsr fontsys_test
 
 			lda #0x00
 			sta 0xd020

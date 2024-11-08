@@ -112,7 +112,7 @@ $(EXE_DIR)/hello.d81: $(EXE_DIR)/hello.prg.mc  $(BIN_DIR)/alldata.bin
 run: $(EXE_DIR)/hello.d81
 
 # test converting C file to asm
-	cc6502 $(SRC_DIR)/skeleton.c --assembly-source=$(EXE_DIR)/skeleton.s
+#	cc6502 $(SRC_DIR)/skeleton.c --assembly-source=$(EXE_DIR)/skeleton.s
 
 ifeq ($(megabuild), 1)
 	$(MEGAFTP) -c "put .\exe\hello.d81 hello.d81" -c "quit"
