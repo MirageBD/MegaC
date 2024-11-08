@@ -158,7 +158,7 @@ void main_processdirentry()
 	uint8_t* transbuf = (uint8_t *)(sdc_transferbuffermsb * 256);
 
 	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
-		direntryptr[i] = transbuf[i];
+		direntryptr[i] = fontsys_asciiremap[transbuf[i]];
 
 	uint8_t attribute = transbuf[0x56];
 	uint8_t isdir = ((attribute & 0b00010000) == 0b00010000);

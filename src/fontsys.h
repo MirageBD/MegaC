@@ -1,6 +1,8 @@
 #ifndef __FONTSYS_H
 #define __FONTSYS_H
 
+extern uint8_t fontsys_asciiremap[];
+
 void fontsys_init();
 void fontsys_test();
 

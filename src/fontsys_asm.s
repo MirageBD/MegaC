@@ -109,7 +109,7 @@ fnts_readchar:
 
 		plx
 		inx
-		cpx #0x06
+		cpx #10
 		beq fontsys_asm_test_end
 		bra fnts_readchar
 
