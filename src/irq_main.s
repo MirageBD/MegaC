@@ -34,11 +34,14 @@ raswait:	cmp 0xd012
 			inx
 raswait2:	cpx 0xd012
 			bne raswait2
-			lda #0x0f
+			lda #0x13
 			sta 0xd020
 
 			jsr keyboard_update
 			jsr keyboard_test
+
+			lda #0x00
+			sta 0xd020
 
 			plz
 			ply

@@ -7,10 +7,10 @@
 fnts_numchars	.equ (1600/16)		; 100 chars, so should only have to bother setting lower value in screenram
 fontcharmem		.equ 0x10000
 
-zpscrdst1:		.equlab _Zp + 0
-zpscrdst2:		.equlab _Zp + 2
-zpcoldst1:		.equlab _Zp + 4
-zpcoldst2:		.equlab _Zp + 6
+zpscrdst1:		.equlab _Zp + 80
+zpscrdst2:		.equlab _Zp + 82
+zpcoldst1:		.equlab _Zp + 84
+zpcoldst2:		.equlab _Zp + 86
 
 ; ----------------------------------------------------------------------------------------------------
 
@@ -109,6 +109,8 @@ fnts_readchar:
 		sta (zp:zpscrdst1),y
 		sta (zp:zpscrdst2),y
 
+		.public fnts_curpal
+fnts_curpal:
 		lda #0x0f ; palette 0 and colour 15 for transparent pixels
 		sta (zp:zpcoldst1),y
 		sta (zp:zpcoldst2),y

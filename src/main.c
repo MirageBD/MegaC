@@ -258,7 +258,7 @@ void setup_main()
 	
 	poke(0xd01a,0x00);											// disable IRQ raster interrupts because C65 uses raster interrupts in the ROM
 
-	VIC2.RC = 0x40;												// d012 = 8
+	VIC2.RC = 0xf0;												// d012 = 8
 	IRQ_VECTORS.IRQ = (volatile uint16_t)&irq_main;
 
 	poke(0xd01a,0x01);											// ACK!
@@ -288,10 +288,11 @@ void main()
 	setup_main();
 	CLI
 
-	for(uint16_t row = 0; row < 10; row++)
+	for(uint16_t row = 0; row < 25; row++)
 	{
 		fnts_row = 2 * row;
-		fnts_column = 0;
+		fnts_column = 10;
+		poke(((uint8_t *)&fnts_curpal + 1), 0x4f);
 		poke(((uint8_t *)&fnts_readchar + 1), (uint8_t)(((0x6000 + row*0x0057) >> 0) & 0xff));
 		poke(((uint8_t *)&fnts_readchar + 2), (uint8_t)(((0x6000 + row*0x0057) >> 8) & 0xff));
 		fontsys_test();
