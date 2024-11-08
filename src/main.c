@@ -13,6 +13,7 @@
 extern void irq_fastload();
 extern void irq_main();
 extern void sdc_opendir();
+extern void fontsys_init();
 
 dma_job dma_clearcolorram1 =
 {
@@ -123,26 +124,52 @@ void setup_fastload_irq()
 	poke(0xd01a,0x01);											// ACK!
 }
 
-void main_processdirentrydir()
-{
-}
+/*
+	FAT dir entry structure:
 
-void main_processdirentryfile()
-{
-}
+	Offset	Type		Description
+	--------------------------------------------------------
+	$00		asciiz		The long file name
+	$40		byte		The length of long file name
+	$41		ascii		The ”8.3” file name.
+						The name part is padded with spaces to make it exactly 8 bytes. The 3 bytes of the extension follow. There is no . between the name and the extension. There is no NULL byte.
+	$4e		dword		The cluster number where the file begins. For sub-directories, this is where the FAT dir entries start for that sub-directory.
+	$52		dword		The length of file in bytes.
+	$56		byte		The type and attribute bits.
+	
+						Attribute Bit		bit set
+						0					Read only
+						1					Hidden
+						2					System
+						3					Volume label
+						4					Sub-directory
+						5					Archive
+						6					Undefined
+						7					Undefined
+*/
+
+#define DIR_ENTRY_SIZE	0x57
+
+uint8_t*	direntryptr		= (uint8_t *)0x8000;
+uint16_t	numdirentries	= 0;
 
 void main_processdirentry()
 {
 	uint8_t* transbuf = (uint8_t *)(sdc_transferbuffermsb * 256);
 
-	for(uint16_t i=0; i<87; i++)
-		poke(SCREEN+i, transbuf[i]);
+	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
+		direntryptr[i] = transbuf[i];
 
-	uint8_t isdir = ((transbuf[0x56] & 0b00010000) == 0b00010000);
-	if(isdir)
-		main_processdirentrydir();
-	else
-		main_processdirentryfile();
+	uint8_t attribute = transbuf[0x56];
+	uint8_t isdir = ((attribute & 0b00010000) == 0b00010000);
+
+	direntryptr += DIR_ENTRY_SIZE;
+	numdirentries++;
+}
+
+void printdir()
+{
+
 }
 
 void setup_main()
@@ -191,11 +218,11 @@ void setup_main()
 	run_dma_job((__far char *)&dma_clearscreen1);
 	run_dma_job((__far char *)&dma_clearscreen2);
 
-	poke(0xe000 + (0 * RRBSCREENWIDTH2) + 0, 4 + (0 * FNTS_NUMCHARS));
-	poke(0xe000 + (1 * RRBSCREENWIDTH2) + 0, 4 + (1 * FNTS_NUMCHARS));
+	// poke(0xe000 + (0 * RRBSCREENWIDTH2) + 0, 4 + (0 * FNTS_NUMCHARS));
+	// poke(0xe000 + (1 * RRBSCREENWIDTH2) + 0, 4 + (1 * FNTS_NUMCHARS));
 
-	poke(0xe000 + (0 * RRBSCREENWIDTH2) + 2, 5 + (0 * FNTS_NUMCHARS));
-	poke(0xe000 + (1 * RRBSCREENWIDTH2) + 2, 5 + (1 * FNTS_NUMCHARS));
+	// poke(0xe000 + (0 * RRBSCREENWIDTH2) + 2, 5 + (0 * FNTS_NUMCHARS));
+	// poke(0xe000 + (1 * RRBSCREENWIDTH2) + 2, 5 + (1 * FNTS_NUMCHARS));
 
 	VIC4.CHRCOUNTMSB = RRBSCREENWIDTH >> 8;						// set RRB screenwidth and linestep
 	VIC4.DISPROWS    = RRBSCREENWIDTH;
@@ -251,9 +278,11 @@ void main()
 	floppy_iffl_fast_load();										// palette
 	floppy_iffl_fast_load();										// song
 
+	fontsys_init();
+
 	sdc_setbufferaddressmsb(0x04);									// set SDC buffer address to 0x0400
 	sdc_setprocessdirentryfunc((uint16_t)(&main_processdirentry));	// set dir entry process pointer
-	sdc_opendir();
+	sdc_opendir();													// open and read root directory
 
 	SEI
 	setup_main();
