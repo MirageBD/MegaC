@@ -71,7 +71,7 @@ dma_job dma_clearscreen1 =
 	.end_options			= 0x00,
 	.command				= 0b00000011, // fill, no chain
 	.count					= (RRBSCREENWIDTH*50),
-	.source					= (((FONTCHARMEM/64 + 10) >> 0)) & 0xff,
+	.source					= (((FONTCHARMEM/64 + 0 /* star=10 */) >> 0)) & 0xff,
 	.source_bank			= 0x00,
 	.destination			= ((SCREEN) & 0xffff),
 	.destination_bank		= (((SCREEN) >> 16) & 0x0f),
@@ -92,7 +92,7 @@ dma_job dma_clearscreen2 =
 	.end_options			= 0x00,
 	.command				= 0b00000011, // fill, no chain
 	.count					= (RRBSCREENWIDTH*50),
-	.source					= (((FONTCHARMEM/64 + 10) >> 8)) & 0xff,
+	.source					= (((FONTCHARMEM/64 + 0 /* star=10 */) >> 8)) & 0xff,
 	.source_bank			= 0x00,
 	.destination			= ((SCREEN + 1) & 0xffff),
 	.destination_bank		= (((SCREEN + 1) >> 16) & 0x0f),
@@ -288,7 +288,14 @@ void main()
 	setup_main();
 	CLI
 
-	fontsys_test();
+	for(uint16_t row = 0; row < 10; row++)
+	{
+		fnts_row = 2 * row;
+		fnts_column = 0;
+		poke(((uint8_t *)&fnts_readchar + 1), (uint8_t)(((0x6000 + row*0x0057) >> 0) & 0xff));
+		poke(((uint8_t *)&fnts_readchar + 2), (uint8_t)(((0x6000 + row*0x0057) >> 8) & 0xff));
+		fontsys_test();
+	}
 
 	while(1)
 	{

@@ -14,4 +14,9 @@ extern uint8_t fnts_screentabhi;
 extern uint8_t fnts_attribtablo;
 extern uint8_t fnts_attribtabhi;
 
+extern uint8_t fnts_readchar;
+
+extern uint8_t fnts_row;
+extern uint8_t fnts_column;
+
 #endif

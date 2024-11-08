@@ -14,6 +14,13 @@ zpcoldst2:		.equlab _Zp + 6
 
 ; ----------------------------------------------------------------------------------------------------
 
+				.public fnts_row
+fnts_row		.byte 0
+				.public fnts_column
+fnts_column		.byte 0
+
+; ----------------------------------------------------------------------------------------------------
+
 		.public fontsys_asm_init
 fontsys_asm_init:
 
@@ -77,6 +84,7 @@ fnts_readcolumn:
 		.public fnts_readchar
 fnts_readchar:
 		lda 0x6000,x
+		beq fontsys_asm_test_end
 
 		phx
 		tax
@@ -109,15 +117,10 @@ fnts_readchar:
 
 		plx
 		inx
-		cpx #10
-		beq fontsys_asm_test_end
 		bra fnts_readchar
 
 fontsys_asm_test_end:
 		rts
-
-fnts_row		.byte 0
-fnts_column		.byte 0
 
 ; ----------------------------------------------------------------------------------------------------
 
