@@ -4,6 +4,8 @@
 extern uint8_t fontsys_asciiremap[];
 
 void fontsys_init();
+void fontsys_map();
+void fontsys_unmap();
 void fontsys_test();
 
 extern void fontsys_asm_init();

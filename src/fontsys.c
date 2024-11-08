@@ -28,9 +28,8 @@ void fontsys_init()
 	}
 }
 
-void fontsys_test()
+void fontsys_map()
 {
-	
 	__asm(  // MAP_MEMORY_IN1MB %0000, %1111
 		" lda #0xff\n"
 		" ldx #0b00000000\n"                // %0000
@@ -47,8 +46,14 @@ void fontsys_test()
 		" map\n"
 		" eom\n"
 	);
+}
 
-	fontsys_asm_test();
-
+void fontsys_unmap()
+{
 	UNMAP_ALL
+}
+
+void fontsys_test()
+{
+	fontsys_asm_test();
 }
