@@ -107,9 +107,9 @@ void setup_main()
 
 	VIC4.TEXTXPOSLSB = 0x50;									// set TEXTXPOS to same as SDBDRWDLSB
 	
-	// VIC2.MCM = 1;											// set multicolor mode
-	// VIC4.FCLRLO = 1;											// lower block, i.e. 0-255		// use NCM and FCM for all characters
-	// VIC4.FCLRHI = 1;											// everything above 255
+	VIC2.MCM = 1;												// set multicolor mode
+	VIC4.FCLRLO = 1;											// lower block, i.e. 0-255		// use NCM and FCM for all characters
+	VIC4.FCLRHI = 1;											// everything above 255
 	// VIC4.NORRDEL = 0;										// enable rrb double buffering
 	// VIC4.DBLRR = 0;											// disable double-height rrb
 	
