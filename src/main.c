@@ -36,7 +36,8 @@ void setup_fastload_irq()
 	CIA2.ICR;
 	poke(0xd01a,0x00);											// disable IRQ raster interrupts because C65 uses raster interrupts in the ROM
 
-	VIC2.RC = 0x00;												// d012 = 0
+	VIC2.RC = 0x08;												// d012 = 0
+	VIC2.RC8 = 0X00;											// d011
 	IRQ_VECTORS.IRQ = (volatile uint16_t)&irq_fastload;			// set irq vector
 
 	poke(0xd01a,0x01);											// ACK!
@@ -175,6 +176,7 @@ void setup_main()
 	poke(0xd01a,0x00);											// disable IRQ raster interrupts because C65 uses raster interrupts in the ROM
 
 	VIC2.RC = 0x08;												// d012 = 8
+	VIC2.RC8 = 0X00;											// d011
 	IRQ_VECTORS.IRQ = (volatile uint16_t)&irq_main;
 
 	poke(0xd01a,0x01);											// ACK!
