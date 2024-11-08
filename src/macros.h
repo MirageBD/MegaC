@@ -14,5 +14,6 @@ typedef void            (*PROC_PTR)(void);
 
 #define SEI             __asm(" sei");
 #define CLI             __asm(" cli");
+#define EOM             __asm(" eom");
 
 #endif

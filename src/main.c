@@ -25,14 +25,14 @@ dma_job dma_clearcolorram1 =
 	.dskipratefrac			= 0x00,
 	.dskiprate_token		= 0x85,
 	.dskiprate				= 0x02,
-	.dbank					= ((SAFE_COLOR_RAM) >> 20),
+	.dbank					= ((SAFE_COLOR_RAM + 0) >> 20),
 	.end_options			= 0x00,
 	.command				= 0b00000011, // fill, no chain
 	.count					= (RRBSCREENWIDTH*50),
 	.source					= 0b0000000000001000, // 00001000 = NCM chars
 	.source_bank			= 0x00,
-	.destination			= ((SAFE_COLOR_RAM) & 0xffff),
-	.destination_bank		= (((SAFE_COLOR_RAM) >> 16) & 0x0f),
+	.destination			= ((SAFE_COLOR_RAM + 0) & 0xffff),
+	.destination_bank		= (((SAFE_COLOR_RAM + 0) >> 16) & 0x0f),
 	.modulo					= 0x0000
 };
 
@@ -71,7 +71,7 @@ dma_job dma_clearscreen1 =
 	.end_options			= 0x00,
 	.command				= 0b00000011, // fill, no chain
 	.count					= (RRBSCREENWIDTH*50),
-	.source					= (((FONTCHARMEM/64 + 0 /* star=10 */) >> 0)) & 0xff,
+	.source					= (((FONTCHARMEM/64 + 0 /*star=10*/) >> 0)) & 0xff,
 	.source_bank			= 0x00,
 	.destination			= ((SCREEN) & 0xffff),
 	.destination_bank		= (((SCREEN) >> 16) & 0x0f),
@@ -92,7 +92,7 @@ dma_job dma_clearscreen2 =
 	.end_options			= 0x00,
 	.command				= 0b00000011, // fill, no chain
 	.count					= (RRBSCREENWIDTH*50),
-	.source					= (((FONTCHARMEM/64 + 0 /* star=10 */) >> 8)) & 0xff,
+	.source					= (((FONTCHARMEM/64 + 0 /*star=10*/) >> 8)) & 0xff,
 	.source_bank			= 0x00,
 	.destination			= ((SCREEN + 1) & 0xffff),
 	.destination_bank		= (((SCREEN + 1) >> 16) & 0x0f),
@@ -111,6 +111,7 @@ void setup_fastload_irq()
 
 	VIC3.KEY = 0x47;											// Enable the VIC4
 	VIC3.KEY = 0x53;											// do I need an eom after this?
+	EOM
 
 	CIA1.ICR = 0b01111111;										// disable interrupts
 	CIA2.ICR = 0b01111111;
@@ -182,33 +183,32 @@ void setup_main()
 	VIC3.CROM9 = 0;
 	VIC3.ROME  = 0;
 
-	VIC4.FNRST    = 0;											// disable raster interrupts
-	VIC4.FNRSTCMP = 0;
+	VIC4.FNRST		= 0;										// disable raster interrupts
+	VIC4.FNRSTCMP	= 0;
+	VIC4.CHR16		= 1;										// use wide character lookup (i.e. character data anywhere in memory)
 
-	VIC4.TEXTXPOSLSB = 0x50;									// set TEXTXPOS to same as SDBDRWDLSB
-
-	VIC3.H640 = 1;												// enable 640 horizontal width
-
-	VIC4.CHR16 = 1;												// use wide character lookup (i.e. character data anywhere in memory)
+	// VIC4.TEXTXPOSLSB = 0x60;									// set TEXTXPOS to same as SDBDRWDLSB
 	
-	// VIC2.MCM = 1;												// set multicolor mode
+	// VIC2.MCM = 1;											// set multicolor mode
+	// VIC4.FCLRLO = 1;											// lower block, i.e. 0-255		// use NCM and FCM for all characters
+	// VIC4.FCLRHI = 1;											// everything above 255
+	// VIC4.NORRDEL = 0;										// enable rrb double buffering
+	// VIC4.DBLRR = 0;											// disable double-height rrb
 	
-	//VIC4.FCLRLO = 1;											// lower block, i.e. 0-255		// use NCM and FCM for all characters
-	//VIC4.FCLRHI = 1;											// everything above 255
+	VIC3.H640		= 1;										// enable 640 horizontal width
+	VIC3.V400		= 1;										// enable 400 vertical height
+	VIC4.CHRYSCL	= 0;
+	VIC4.CHRXSCL	= 0x78;
 
-	VIC4.NORRDEL = 0;											// enable rrb double buffering
-	
-	VIC3.V400    = 1;											// enable 400 vertical height
-	VIC4.CHRYSCL = 0;
-	VIC4.CHRXSCL = 0x78;
-
-	VIC4.DBLRR = 0;												// disable double-height rrb
-
-	VIC4.DISPROWS = 50;											// display 50 rows of text
+	VIC4.DISPROWS	= 50;										// display 50 rows of text
 
 	VIC4.SCRNPTR    = (SCREEN & 0xffff);						// set screen pointer
 	VIC4.SCRNPTRBNK = (SCREEN & 0xf0000) >> 16;
 	VIC4.SCRNPTRMB  = 0x0;
+
+	VIC4.CHRCOUNTLSB = RRBSCREENWIDTH;							// RRBSCREENWIDTH; // 64 works, 65 does not
+	VIC4.CHRCOUNTMSB = RRBSCREENWIDTH >> 8;						// set RRB screenwidth and linestep
+	VIC4.LINESTEP    = RRBSCREENWIDTH2;
 
 	VIC4.COLPTR = COLOR_RAM_OFFSET;								// set offset to colour ram, so we can use continuous memory
 
@@ -218,16 +218,16 @@ void setup_main()
 	run_dma_job((__far char *)&dma_clearscreen1);
 	run_dma_job((__far char *)&dma_clearscreen2);
 
-	// poke(0xe000 + (0 * RRBSCREENWIDTH2) + 0, 4 + (0 * FNTS_NUMCHARS));
-	// poke(0xe000 + (1 * RRBSCREENWIDTH2) + 0, 4 + (1 * FNTS_NUMCHARS));
+/*
+	for(uint16_t x = 1; x < 39; x++)
+	{
+		poke(0xe000 + (0 * RRBSCREENWIDTH2) + (x+0) * 2, 4 + (0 * 100));
+		poke(0xe000 + (0 * RRBSCREENWIDTH2) + (x+1) * 2, 5 + (0 * 100));
 
-	// poke(0xe000 + (0 * RRBSCREENWIDTH2) + 2, 5 + (0 * FNTS_NUMCHARS));
-	// poke(0xe000 + (1 * RRBSCREENWIDTH2) + 2, 5 + (1 * FNTS_NUMCHARS));
-
-	VIC4.CHRCOUNTMSB = RRBSCREENWIDTH >> 8;						// set RRB screenwidth and linestep
-	VIC4.DISPROWS    = RRBSCREENWIDTH;
-	VIC4.LINESTEP    = RRBSCREENWIDTH << 1;
-	VIC4.CHRCOUNTLSB = RRBSCREENWIDTH;
+		poke(0xe000 + (1 * RRBSCREENWIDTH2) + (x+0) * 2, 4 + (1 * 100));
+		poke(0xe000 + (1 * RRBSCREENWIDTH2) + (x+1) * 2, 5 + (1 * 100));
+	}
+*/
 
 	for(uint8_t i=0; i<255; i++)
 	{
@@ -258,7 +258,7 @@ void setup_main()
 	
 	poke(0xd01a,0x00);											// disable IRQ raster interrupts because C65 uses raster interrupts in the ROM
 
-	VIC2.RC = 0xf0;												// d012 = 8
+	VIC2.RC = 0x40;												// d012 = 8
 	IRQ_VECTORS.IRQ = (volatile uint16_t)&irq_main;
 
 	poke(0xd01a,0x01);											// ACK!

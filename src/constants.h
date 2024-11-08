@@ -2,8 +2,8 @@
 #define __CONSTANTS_H
 
 #define SCREEN                  0xe000
-#define RRBSCREENWIDTH          80
-#define RRBSCREENWIDTH2         (2*80)
+#define RRBSCREENWIDTH          64
+#define RRBSCREENWIDTH2         (2*RRBSCREENWIDTH)
 #define PALETTE                 0xc000
 
 #define FONTCHARMEM             0x10000

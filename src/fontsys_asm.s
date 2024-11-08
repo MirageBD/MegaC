@@ -83,7 +83,7 @@ fnts_readcolumn:
 
 		.public fnts_readchar
 fnts_readchar:
-		lda 0x6000,x
+		lda 0xbabe,x
 		beq fontsys_asm_test_end
 
 		phx
