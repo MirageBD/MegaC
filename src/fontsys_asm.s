@@ -1,15 +1,25 @@
 ; ----------------------------------------------------------------------------------------------------
 
-fnts_numchars	.equ (1600/16)		; 100 chars, so should only have to bother setting lower value in screenram
+			.extern _Zp
 
 ; ----------------------------------------------------------------------------------------------------
 
-		.public fontsys_init
-fontsys_init:
+fnts_numchars	.equ (1600/16)		; 100 chars, so should only have to bother setting lower value in screenram
+fontcharmem		.equ 0x10000
+
+zpscrdst1:		.equlab _Zp + 0
+zpscrdst2:		.equlab _Zp + 2
+zpcoldst1:		.equlab _Zp + 4
+zpcoldst2:		.equlab _Zp + 6
+
+; ----------------------------------------------------------------------------------------------------
+
+		.public fontsys_asm_init
+fontsys_asm_init:
 
 		ldx #0x00
 fs_i0$:
-		lda #0b00001000	; NCM bit
+		lda #0b00001000				; NCM bit, no 8-pixel trim
 		sta fnts_chartrimshi,x
 		sec
 		lda #16
@@ -21,14 +31,93 @@ fs_i0$:
 		asl a
 		sta fnts_chartrimslo,x
 		bcc fs_il$
-		lda #0b00000100				; overflowed, so we have a trimhi
-		ora fnts_chartrimshi,x
+		lda #0b00001100				; overflowed, so we have a trimhi. ora with NCM bit and store
 		sta fnts_chartrimshi,x
 fs_il$:	inx
 		cpx #fnts_numchars
 		bne fs_i0$
 
 		rts
+
+; ----------------------------------------------------------------------------------------------------
+
+		.public fontsys_asm_test
+fontsys_asm_test:
+
+		ldx #0
+
+fnts_readrow:
+		lda fnts_row
+		tay
+
+		lda fnts_screentablo+0,y
+		sta zp:zpscrdst1+0
+		lda fnts_screentabhi+0,y
+		sta zp:zpscrdst1+1
+
+		lda fnts_screentablo+1,y
+		sta zp:zpscrdst2+0
+		lda fnts_screentabhi+1,y
+		sta zp:zpscrdst2+1
+
+		lda fnts_attribtablo+0,y
+		sta zp:zpcoldst1+0
+		lda fnts_attribtabhi+0,y
+		sta zp:zpcoldst1+1
+
+		lda fnts_attribtablo+1,y
+		sta zp:zpcoldst2+0
+		lda fnts_attribtabhi+1,y
+		sta zp:zpcoldst2+1
+
+fnts_readcolumn:
+		lda fnts_column
+		tay
+
+		.public fnts_readchar
+fnts_readchar:
+		lda 0x6000,x
+
+		phx
+		tax
+
+		clc
+		adc #.byte0 (fontcharmem / 64 + 0 * fnts_numchars)
+		sta (zp:zpscrdst1),y
+
+		txa
+		clc
+		adc #.byte0 (fontcharmem / 64 + 1 * fnts_numchars) ; 64
+		sta (zp:zpscrdst2),y
+
+		lda fnts_chartrimshi,x
+		sta (zp:zpcoldst1),y
+		sta (zp:zpcoldst2),y
+
+		iny
+
+		lda #.byte1 (fontcharmem / 64)
+		ora fnts_chartrimslo,x
+		sta (zp:zpscrdst1),y
+		sta (zp:zpscrdst2),y
+
+		lda #0x0f ; palette 0 and colour 15 for transparent pixels
+		sta (zp:zpcoldst1),y
+		sta (zp:zpcoldst2),y
+
+		iny
+
+		plx
+		inx
+		cpx #0x06
+		beq fontsys_asm_test_end
+		bra fnts_readchar
+
+fontsys_asm_test_end:
+		rts
+
+fnts_row		.byte 0
+fnts_column		.byte 0
 
 ; ----------------------------------------------------------------------------------------------------
 
@@ -48,5 +137,14 @@ fnts_charwidths:	;      .   !   "   #   $   %   &   '   (   )   *   +   ,   -   
 fnts_chartrimshi:	.space 100
 					.public fnts_chartrimslo
 fnts_chartrimslo:	.space 100
+
+					.public fnts_screentablo
+fnts_screentablo:	.space 50		; .byte <(screen          + rrbscreenwidth2 * I)
+					.public fnts_screentabhi
+fnts_screentabhi:	.space 50		; .byte >(screen          + rrbscreenwidth2 * I)
+					.public fnts_attribtablo
+fnts_attribtablo:	.space 50		; .byte <(mappedcolourmem + rrbscreenwidth2 * I)
+					.public fnts_attribtabhi
+fnts_attribtabhi:	.space 50		; .byte >(mappedcolourmem + rrbscreenwidth2 * I)
 
 ; ----------------------------------------------------------------------------------------------------

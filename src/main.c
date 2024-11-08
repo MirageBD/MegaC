@@ -9,11 +9,11 @@
 #include "keyboard.h"
 #include "sdc.h"
 #include "dma.h"
+#include "fontsys.h"
 
 extern void irq_fastload();
 extern void irq_main();
 extern void sdc_opendir();
-extern void fontsys_init();
 
 dma_job dma_clearcolorram1 =
 {
@@ -150,7 +150,7 @@ void setup_fastload_irq()
 
 #define DIR_ENTRY_SIZE	0x57
 
-uint8_t*	direntryptr		= (uint8_t *)0x8000;
+uint8_t*	direntryptr		= (uint8_t *)0x6000;
 uint16_t	numdirentries	= 0;
 
 void main_processdirentry()
@@ -287,6 +287,8 @@ void main()
 	SEI
 	setup_main();
 	CLI
+
+	fontsys_test();
 
 	while(1)
 	{
