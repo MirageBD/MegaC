@@ -61,6 +61,8 @@ uint8_t mp_enabled_channels[4] = { 1, 1, 1, 1 };
 
 // GLOBAL DATA
 
+uint8_t			mp_playing;
+
 uint8_t			mp_done;
 uint8_t			mp_patternset;
 uint8_t			mp_row;
@@ -149,6 +151,16 @@ uint16_t mp_periods[36] =
 };
 
 // ------------------------------------------------------------------------------------
+
+void modplay_enable()
+{
+	mp_playing = 1;
+}
+
+void modplay_disable()
+{
+	mp_playing = 0;
+}
 
 struct mp_dmalist
 {
@@ -707,6 +719,9 @@ void mp_processnote(uint8_t channel, uint8_t *data)
 
 void modplay_play()
 {
+	if(!mp_playing)
+		return;
+
 	// setup some DMA stuff that stays the same during modplay_play
 	DMA.ADDRBANK		= 0;
 	DMA.ADDRMB			= 0;
@@ -793,9 +808,11 @@ void modplay_init(uint32_t address)
 	uint16_t i;
 	uint8_t a, numinstruments;
 
-	// enable audio dma and turn off saturation
-	AUDIO_DMA.AUDEN = 0b10000000;
-	AUDIO_DMA.DBGSAT = 0b00000000;
+	// turn off saturation
+	AUDIO_DMA.DBGSAT	= 0b00000000;
+
+	// disable audio dma
+	AUDIO_DMA.AUDEN		= 0b00000000;
 
 	// Stop all DMA audio first
 	AUDIO_DMA.CHANNELS[0].CONTROL = 0;
@@ -866,21 +883,24 @@ void modplay_init(uint32_t address)
 		mod_sample_data += sample_lengths[i];
 	}
 
-	mp_row			= 0;
-	mp_currow		= 0;
-	mp_pattern		= 0;
-	mp_delcount		= 0;
-	mp_globaltick	= 0;
-	mp_delset		= 0;
-	mp_inrepeat		= 0;
-	mp_addflag		= 0;
+	mp_row				= 0;
+	mp_currow			= 0;
+	mp_pattern			= 0;
+	mp_curpattern		= 0;
+	mp_delcount			= 0;
+	mp_globaltick		= 0;
+	mp_delset			= 0;
+	mp_inrepeat			= 0;
+	mp_addflag			= 0;
+	mp_arpeggiocounter	= 0;
+	mp_patternset		= 0;
 
-	mod_speed		= 6;
-	mp_nextspeed	= 6;
-	mod_tempo		= 125;
-	mp_nexttempo	= 125;
+	mod_speed			= 6;
+	mp_nextspeed		= 6;
+	mod_tempo			= 125;
+	mp_nexttempo		= 125;
 
-	mp_done		= 0;
+	mp_done				= 0;
 
 	for(i = 0; i < 4; i++)
 	{
@@ -918,6 +938,9 @@ void modplay_init(uint32_t address)
 		// set value to 0xff
 		poke(0xd6f5U, 0xff);
 	}
+
+	// finally, enable audio DMA again
+	AUDIO_DMA.AUDEN		= 0b10000000;
 }
 
 // ------------------------------------------------------------------------------------

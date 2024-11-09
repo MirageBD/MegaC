@@ -65,7 +65,7 @@ sdc_opendir_errorloop:
 
 ; ----------------------------------------------------------------------------------------------------
 
-		.public sdc_asm_chdir		
+		.public sdc_asm_chdir
 sdc_asm_chdir
 
 		ldy sdc_transferbuffermsb						; set the hyppo filename from transferbuffer
@@ -87,7 +87,8 @@ sdc_chdirend:
 
 ; ----------------------------------------------------------------------------------------------------
 
-sdc_openfile:
+		.public sdc_asm_openfile
+sdc_asm_openfile:
 
 		ldy sdc_transferbuffermsb						; set the hyppo filename from transferbuffer
 		lda #0x2e

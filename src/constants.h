@@ -15,4 +15,6 @@
 
 #define MAPPEDCOLOURMEM         0x08000
 
+#define MODADRESS               0x20000
+
 #endif

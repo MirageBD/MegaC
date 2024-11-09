@@ -23,3 +23,8 @@ void sdc_chdir()
 {
 	sdc_asm_chdir();
 }
+
+void sdc_openfile()
+{
+	sdc_asm_openfile();
+}
