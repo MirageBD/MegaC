@@ -18,3 +18,8 @@ void sdc_opendir()
 {
 	sdc_asm_opendir();
 }
+
+void sdc_chdir()
+{
+	sdc_asm_chdir();
+}

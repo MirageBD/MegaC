@@ -42,16 +42,15 @@
 uint8_t*	direntryptr		= (uint8_t *)0x7000;
 uint16_t	numdirentries	= 0;
 uint8_t		program_keydowncount = 0;
-uint8_t program_dir_selectedrow = 0;
+uint8_t		program_dir_selectedrow = 0;
+uint8_t*	program_transbuf;
 
 void main_processdirentry()
 {
-	uint8_t* transbuf = (uint8_t *)(sdc_transferbuffermsb * 256);
-
 	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
-		direntryptr[i] = fontsys_asciiremap[transbuf[i]];
+		direntryptr[i] = fontsys_asciitofont[program_transbuf[i]];
 
-	uint8_t attribute = transbuf[0x56];
+	uint8_t attribute = program_transbuf[0x56];
 	uint8_t isdir = ((attribute & 0b00010000) == 0b00010000);
 
 	direntryptr += DIR_ENTRY_SIZE;
@@ -69,6 +68,29 @@ void program_loaddata()
 	floppy_iffl_fast_load();										// song
 }
 
+void program_settransbuf()
+{
+	sdc_setbufferaddressmsb(0x04);									// set SDC buffer address to 0x0400
+	program_transbuf = (uint8_t *)(sdc_transferbuffermsb * 256);
+}
+
+void program_opendir()
+{
+	direntryptr = (uint8_t *)0x7000;
+	numdirentries = 0;
+	program_dir_selectedrow = 0;
+	sdc_setprocessdirentryfunc((uint16_t)(&main_processdirentry));	// set dir entry process pointer
+	sdc_opendir();													// open and read root directory
+}
+
+void program_chdir()
+{
+	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
+		program_transbuf[i] = fontsys_fonttoascii[peek(0x7000 + program_dir_selectedrow*0x0057 + i)];
+
+	sdc_chdir();
+}
+
 void program_init()
 {
 	run_dma_job((__far char *)&dma_clearcolorram1);
@@ -80,9 +102,8 @@ void program_init()
 
 	fontsys_init();
 
-	sdc_setbufferaddressmsb(0x04);									// set SDC buffer address to 0x0400
-	sdc_setprocessdirentryfunc((uint16_t)(&main_processdirentry));	// set dir entry process pointer
-	sdc_opendir();													// open and read root directory
+	program_settransbuf();
+	program_opendir();												// open and read root directory
 
 	// TODO - bank in correct palette
 	// TODO - create DMA job for this
@@ -102,7 +123,11 @@ void program_drawdirectory()
 {
 	fontsys_map();
 
-	for(uint16_t row = 0; row < 25; row++)
+	uint16_t numrows = numdirentries;
+	if(numrows > 25)
+		numrows = 25;
+
+	for(uint16_t row = 0; row < numrows; row++)
 	{
 		fnts_row = 2 * row;
 		fnts_column = 0;
@@ -145,7 +170,16 @@ void program_update()
 	}
 	else if(keyboard_keypressed(KEYBOARD_RETURN))
 	{
-		poke(0xd020, 0x14);
+		uint8_t attrib = peek(0x7000 + program_dir_selectedrow*0x0057 + 0x0056);
+	
+		if((attrib & 0b00010000) == 0b00010000)
+		{
+			program_chdir();
+			program_opendir();
+			poke(0xd020, 0x46);
+		}
+		else
+			poke(0xd020, 0x02);
 	}
 	else
 	{
