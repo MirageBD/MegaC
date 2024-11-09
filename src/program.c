@@ -50,7 +50,10 @@ uint8_t		xemu_fudge = 4;
 void main_processdirentry()
 {
 	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
+	{
 		direntryptr[i] = fontsys_asciitofont[program_transbuf[i]];
+		direntryptr[i-4096] = program_transbuf[i];
+	}
 
 	uint8_t attribute = program_transbuf[0x56];
 	uint8_t isdir = ((attribute & 0b00010000) == 0b00010000);
@@ -111,8 +114,7 @@ void program_init()
 	run_dma_job((__far char *)&dma_clearscreen1);
 	run_dma_job((__far char *)&dma_clearscreen2);
 
-	//modplay_disable();
-	//modplay_init(MODADRESS);
+	modplay_disable();
 
 	fontsys_init();
 

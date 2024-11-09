@@ -41,7 +41,7 @@ fs_i0$:
 		lda #0b00001100				; overflowed, so we have a trimhi. ora with NCM bit and store
 		sta fnts_chartrimshi,x
 fs_il$:	inx
-		cpx #fnts_numchars
+		cpx #128
 		bne fs_i0$
 
 		rts
@@ -131,12 +131,14 @@ fnts_charwidths:	;      .   !   "   #   $   %   &   '   (   )   *   +   ,   -   
 					;      £   ]   |   -   -   A   B   C   D   E   F   G   H   I   J   K   L   M   N   O
 					.byte  9,  4,  8,  8,  8, 10,  8, 10,  9,  7,  6, 10,  8,  3,  7,  8,  6, 13,  8, 10
 					;      P   Q   R   S   T   U   V   W   X   Y   Z   =   =   =   -   o   .   .   .   .
-					.byte  8, 11,  8,  9,  7,  9, 10, 14,  9,  9,  8, 10, 16,  6, 16,  8, 16, 16, 16, 16
+					.byte  8, 11,  8,  9,  7,  9, 10, 14,  9,  9,  8, 10, 16,  6, 16,  8,  4,  4,  4,  4
+
+					.byte  4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4
 
 					.public fnts_chartrimshi
-fnts_chartrimshi:	.space 100
+fnts_chartrimshi:	.space 128
 					.public fnts_chartrimslo
-fnts_chartrimslo:	.space 100
+fnts_chartrimslo:	.space 128
 
 					.public fnts_screentablo
 fnts_screentablo:	.space 50		; .byte <(screen          + rrbscreenwidth2 * I)

@@ -160,6 +160,25 @@ void modplay_enable()
 void modplay_disable()
 {
 	mp_playing = 0;
+
+	// disable audio dma
+	AUDIO_DMA.AUDEN		= 0b00000000;
+
+	// Stop all DMA audio first
+	AUDIO_DMA.CHANNELS[0].CONTROL = 0;
+	AUDIO_DMA.CHANNELS[1].CONTROL = 0;
+	AUDIO_DMA.CHANNELS[2].CONTROL = 0;
+	AUDIO_DMA.CHANNELS[3].CONTROL = 0;
+
+	// Mute all channels
+	poke(0xd729, 0);
+	poke(0xd739, 0);
+	poke(0xd749, 0);
+	poke(0xd759, 0);
+	poke(0xd71c, 0);
+	poke(0xd71d, 0);
+	poke(0xd71e, 0);
+	poke(0xd71f, 0);
 }
 
 struct mp_dmalist
@@ -811,14 +830,7 @@ void modplay_init(uint32_t address)
 	// turn off saturation
 	AUDIO_DMA.DBGSAT	= 0b00000000;
 
-	// disable audio dma
-	AUDIO_DMA.AUDEN		= 0b00000000;
-
-	// Stop all DMA audio first
-	AUDIO_DMA.CHANNELS[0].CONTROL = 0;
-	AUDIO_DMA.CHANNELS[1].CONTROL = 0;
-	AUDIO_DMA.CHANNELS[2].CONTROL = 0;
-	AUDIO_DMA.CHANNELS[3].CONTROL = 0;
+	modplay_disable();
 
 	// we only use copies in modplay functions, no fills, so set up one time only
 	mp_dmalist.command	= 0x00; // copy
