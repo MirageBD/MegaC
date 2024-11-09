@@ -420,11 +420,79 @@ typedef struct _SID					// SID1=0xd400, SID2=0xd420, SID3=0xd440, SID4=0xd460
 
 // ---------------------------------------------------------------------------
 
-typedef struct _KEYSCAN				// 0xd613
+typedef struct _IO					// 0xd609
 {
+	union							// 0xd609
+	{
+		uint8_t	UFAST  : 1;
+		uint8_t	NA     : 7;
+	};
+	union							// 0xd60a
+	{
+		uint8_t	MODKEYLSHFT : 1;
+		uint8_t	MODKEYRSHFT : 1;
+		uint8_t	MODKEYCTRL  : 1;
+		uint8_t	MODKEYMEGA  : 1;
+		uint8_t	MODKEYALT   : 1;
+		uint8_t	MODKEYSCRL  : 1;
+		uint8_t	MODKEYCAPS  : 1;
+		uint8_t	KEYQUEUE    : 1;
+	};
+	union							// 0xd60b
+	{
+		uint8_t	PORTF  : 6;
+		uint8_t	OSKZON : 1;
+		uint8_t	OSKZEN : 1;
+	};
+	union							// 0xd60c
+	{
+		uint8_t	PORTFDDR1 : 6;
+		uint8_t	PORTFDDR2 : 2;
+	};
+	union							// 0xd60d
+	{
+		uint8_t	CONN41 : 1;
+		uint8_t	RST41  : 1;
+		uint8_t	SDDATA : 1;
+		uint8_t	SDCLK  : 1;
+		uint8_t	SDCS   : 1;
+		uint8_t	SDBSH  : 1;
+		uint8_t	HDSDA  : 1;
+		uint8_t	HDSCL  : 1;
+	};
+	uint8_t		BASHDDR;			// 0xd60e
+	union							// 0xd60f
+	{
+		uint8_t	KEYLEFT   : 1;
+		uint8_t	KEYUP     : 1;
+		uint8_t	_NA3      : 3;
+		uint8_t	REALHW    : 1;
+		uint8_t	OSKDIM    : 1;
+		uint8_t	ACCESSKEY : 1;
+	};
+	uint8_t		ASCIIKEY;			// 0xd610
+	union							// 0xd611
+	{
+		uint8_t	MLSHFT   : 1;
+		uint8_t	MRSHFT   : 1;
+		uint8_t	MCTRL    : 1;
+		uint8_t	MMEGA    : 1;
+		uint8_t	MALT     : 1;
+		uint8_t	MSCRL    : 1;
+		uint8_t	MCAPS    : 1;
+		uint8_t	MDISABLE : 1;
+	};
+	union							// 0xd612
+	{
+		uint8_t	_NA4     : 4;
+		uint8_t	OSKDEBUG : 1;
+		uint8_t	JOYSWAP  : 1;
+		uint8_t	LJOYA    : 1;
+		uint8_t	LJOYB    : 1;
+	};
 	uint8_t		KEYMATRIXPEEK;		// 0xd613
 	uint8_t		KEYMATRIXSEL;		// 0xd614
-} _KEYSCAN;
+} _IO;
 
 // ---------------------------------------------------------------------------
 
@@ -601,7 +669,7 @@ typedef struct _IRQ_VECTORS			// 0xfffa
 #define SID2		(*(volatile _SID *)			0xd420)
 #define SID3		(*(volatile _SID *)			0xd440)
 #define SID4		(*(volatile _SID *)			0xd460)
-#define KEYSCAN		(*(volatile _KEYSCAN *)		0xd613)
+#define IO			(*(volatile _IO *)			0xd609)
 #define DMA			(*(volatile _DMA *)			0xd700)
 #define MATH		(*(volatile _MATH *)		0xd70f)
 #define AUDIO_DMA	(*(volatile _AUDIO_DMA *)	0xd711)

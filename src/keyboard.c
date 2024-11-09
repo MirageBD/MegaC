@@ -93,16 +93,23 @@ void keyboard_update()
 	keyboard_pressed = 0xff;
 	for(int column = 0; column < 9; column++)
 	{
-		KEYSCAN.KEYMATRIXSEL = column;
-		uint8_t keys = KEYSCAN.KEYMATRIXPEEK ^ 0xff;
+		IO.KEYMATRIXSEL = column;
+		uint8_t keys = IO.KEYMATRIXPEEK ^ 0xff;
 
 		for(int row = 0; row < 9; row++)
 		{
-			if((keys & 0x01) == 1)
+			if((keys & 0x01) == 0x01)
+			{
 				keyboard_pressed = row + (column << 3);
+			}
 			keys >>= 1;
 		}
 	}
+
+	if(IO.KEYUP == 1)
+		keyboard_pressed = KEYBOARD_CURSORUP;
+	if(IO.KEYLEFT == 1)
+		keyboard_pressed = KEYBOARD_CURSORLEFT;
 }
 
 uint8_t keyboard_keyreleased(uint8_t key)
@@ -110,16 +117,16 @@ uint8_t keyboard_keyreleased(uint8_t key)
 	if(keyboard_pressed == 0xff) // no key pressed
 	{
 		if(keyboard_prevpressed != 0xff) // but there was one previously
-			if(keyboard_toascii[keyboard_prevpressed] == key)
+			if(keyboard_prevpressed == key)
 				return 1;
 	}
 	return 0;
 }
 
-void keyboard_test()
+uint8_t keyboard_keypressed(uint8_t key)
 {
-	if(keyboard_keyreleased(1) == 1) // if 'a' pressed
-	{
-		poke(0xd021, peek(0xd021) + 1); // increase screen colour
-	}
+	if(keyboard_pressed == key)
+		return 1;
+
+	return 0;
 }

@@ -41,6 +41,8 @@
 
 uint8_t*	direntryptr		= (uint8_t *)0x7000;
 uint16_t	numdirentries	= 0;
+uint8_t		program_keydowncount = 0;
+uint8_t program_dir_selectedrow = 0;
 
 void main_processdirentry()
 {
@@ -84,7 +86,7 @@ void program_init()
 
 	// TODO - bank in correct palette
 	// TODO - create DMA job for this
-	for(uint8_t i=0; i<255; i++)
+	for(uint8_t i = 0; i < 255; i++)
 	{
 		poke(0xd100+i, ((uint8_t *)PALETTE)[0*256+i]);
 		poke(0xd200+i, ((uint8_t *)PALETTE)[1*256+i]);
@@ -94,6 +96,61 @@ void program_init()
 
 	VIC2.BORDERCOL = 0x0f;
 	VIC2.SCREENCOL = 0x00;
+}
+
+void program_drawdirectory()
+{
+	fontsys_map();
+
+	for(uint16_t row = 0; row < 25; row++)
+	{
+		fnts_row = 2 * row;
+		fnts_column = 0;
+		
+		uint8_t attrib = peek(0x7000 + row*0x0057 + 0x0056);
+		uint8_t color = 0x0f;
+		if((attrib & 0b00010000) == 0b00010000)
+			color = 0x4f;
+
+		if(row == program_dir_selectedrow)
+			color = ((color & 0xf0) | 0x02);
+
+		poke(((uint8_t *)&fnts_curpal + 1), color);
+
+		poke(((uint8_t *)&fnts_readchar + 1), (uint8_t)(((0x7000 + row*0x0057) >> 0) & 0xff));
+		poke(((uint8_t *)&fnts_readchar + 2), (uint8_t)(((0x7000 + row*0x0057) >> 8) & 0xff));
+		fontsys_asm_test();
+	}
+
+	fontsys_unmap();
+}
+
+void program_update()
+{
+	program_drawdirectory();
+
+	poke(0xd020, 0x0f);
+
+	if(keyboard_keypressed(KEYBOARD_CURSORDOWN) == 1)
+	{
+		if((program_keydowncount % 4) == 0)
+			program_dir_selectedrow++;
+		program_keydowncount++;
+	}
+	else if(keyboard_keypressed(KEYBOARD_CURSORUP) == 1)
+	{
+		if((program_keydowncount % 4) == 0)
+			program_dir_selectedrow--;
+		program_keydowncount++;
+	}
+	else if(keyboard_keypressed(KEYBOARD_RETURN))
+	{
+		poke(0xd020, 0x14);
+	}
+	else
+	{
+		program_keydowncount = 0;
+	}
 }
 
 void program_mainloop()
