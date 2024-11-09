@@ -868,6 +868,8 @@ void modplay_init(uint32_t address)
 	mod_songlength = lpeek(mod_addr + 20 + numinstruments*30 + 0);
 	mp_song_loop_point = lpeek(mod_addr + 20 + numinstruments*30 + 1);
 
+	mod_numpatterns = 0;
+
 	mp_dmacopy(mod_addr + 20 + numinstruments * 30 + 2, (uint32_t)mod_patternlist, 128);
 	for(i = 0; i < mod_songlength; i++)
 	{
