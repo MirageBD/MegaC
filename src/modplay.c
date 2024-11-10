@@ -93,6 +93,7 @@ uint8_t			sample_address2;
 // MOD DATA FOR 1 MOD ----------------------------------------
 
 uint32_t		mod_addr;
+uint32_t		mod_attic_addr;
 uint8_t			mod_sigsize;					// size of signature (0 or 4)
 uint8_t			mod_numinstruments;
 uint32_t		mod_sample_offset;
@@ -201,9 +202,12 @@ struct mp_dmalist_11byte mp_dmalist_11byte;
 
 struct mp_dmalist_12byte
 {
-	uint8_t		style;
+	uint8_t		sourcemb_token;
 	uint8_t		sourcemb;
+	uint8_t		destmb_token;
 	uint8_t		destmb;
+	uint8_t		format;
+	uint8_t		endtokenlist;
 	uint8_t		command_lo;
 	uint16_t	count;
 	uint16_t	source_addr;
@@ -231,8 +235,12 @@ void mp_dmacopy(uint32_t source_address, uint32_t destination_address, uint16_t 
 // extended DMA job
 void mp_dmacopy_ex(uint32_t source_address, uint32_t destination_address, uint16_t count)
 {
-	mp_dmalist_12byte.sourcemb					= 0x00;
-	mp_dmalist_12byte.destmb					= 0x00;
+	mp_dmalist_12byte.sourcemb_token			= 0x80;
+	mp_dmalist_12byte.sourcemb					= (source_address >> 20) & 0xff;		// $80 for attic, $00 for fast ram
+	mp_dmalist_12byte.destmb_token				= 0x81;
+	mp_dmalist_12byte.destmb					= (destination_address >> 20) & 0xff;	// $80 for attic, $00 for fast ram
+	mp_dmalist_12byte.format					= 0x0b;
+	mp_dmalist_12byte.endtokenlist				= 0x00;
 	mp_dmalist_12byte.count						= count;
 	mp_dmalist_12byte.source_addr				= (source_address & 0xffff);
 	mp_dmalist_12byte.source_bank_and_flags		= (source_address >> 16) & 0x7f;
@@ -863,7 +871,7 @@ void modplay_play()
 
 // ------------------------------------------------------------------------------------
 
-void modplay_init(uint32_t address)
+void modplay_init(uint32_t address, uint32_t attic_address)
 {
 	uint16_t i;
 	uint8_t a;
@@ -874,13 +882,13 @@ void modplay_init(uint32_t address)
 	modplay_disable();
 
 	// we only use copies in modplay functions, no fills, so set up one time only
-	mp_dmalist_11byte.command_lo	= 0x00; // copy
-	mp_dmalist_12byte.command_lo	= 0x00; // copy
-	mp_dmalist_12byte.style			= 0x81;
+	mp_dmalist_11byte.command_lo		= 0x00; // copy
+	mp_dmalist_12byte.command_lo		= 0x00; // copy
 
 	mod_addr = address;
+	mod_attic_addr = attic_address;
 
-	mp_dmacopy_ex(mod_addr + 1080, (uint32_t)mod_tmpbuf, 4);							// Check if 15 or 31 instrument mode (M.K.)
+	mp_dmacopy_ex(mod_attic_addr + 1080, (uint32_t)mod_tmpbuf, 4);						// Check if 15 or 31 instrument mode (M.K.)
 
 	mod_sigsize = 0;
 	mod_numinstruments = 15;
@@ -901,8 +909,8 @@ void modplay_init(uint32_t address)
 	mod_patternlist_offset = 20 + mod_numinstruments * 30 + 2;
 	mod_patterns_offset = mod_sigsize + mod_patternlist_offset + 128;					// 600 for 15 instruments, 1084 for 31
 
-	mod_patterns_data = mod_addr + mod_patterns_offset;
-	mod_patternlist_data = mod_addr + mod_patternlist_offset;
+	mod_patterns_data = mod_attic_addr + mod_patterns_offset;
+	mod_patternlist_data = mod_attic_addr + mod_patternlist_offset;
 
 	for(i = 0; i < mod_numinstruments; i++)
 	{
@@ -911,7 +919,7 @@ void modplay_init(uint32_t address)
 		// 1 byte  - volume for sample ($00-$40)
 		// 2 bytes - repeat point in words
 		// 2 bytes - repeat length in words
-		mp_dmacopy_ex(mod_addr + 0x14 + i * 30 + 22, (uint32_t)mod_tmpbuf, 8);			// Get instrument data for plucking
+		mp_dmacopy_ex(mod_attic_addr + 20 + i * 30 + 22, (uint32_t)mod_tmpbuf, 8);	// Get instrument data for plucking
 		sample_lengths      [i] = mod_tmpbuf[1] + (mod_tmpbuf[0] << 8);
 		sample_lengths      [i] <<= 1;													// Redenominate instrument length into bytes
 
@@ -926,8 +934,8 @@ void modplay_init(uint32_t address)
 		sample_repeatlength [i] = mod_tmpbuf[7] + (mod_tmpbuf[6] << 8);
 	}
 
-	mod_songlength = lpeek(mod_addr + 20 + mod_numinstruments * 30 + 0);
-	mp_song_loop_point = lpeek(mod_addr + 20 + mod_numinstruments * 30 + 1);
+	mod_songlength = lpeek(mod_attic_addr + 20 + mod_numinstruments * 30 + 0);
+	mp_song_loop_point = lpeek(mod_attic_addr + 20 + mod_numinstruments * 30 + 1);
 
 	mod_numpatterns = 0;
 
@@ -1005,6 +1013,9 @@ void modplay_init(uint32_t address)
 
 	// finally, enable audio DMA again
 	AUDIO_DMA.AUDEN		= 0b10000000;
+
+	// do test DMA copy from attic ram
+	// mp_dmacopy_ex(0x08000000, 0xc800, 40);
 }
 
 // ------------------------------------------------------------------------------------

@@ -107,7 +107,7 @@ void program_openfile()
 
 	sdc_hyppo_loadfile();
 
-/*
+
 	// test loading to attic
 	poke(&sdc_loadaddresslo,  (uint8_t)((0x000000 >>  0) & 0xff));
 	poke(&sdc_loadaddressmid, (uint8_t)((0x000000 >>  8) & 0xff));
@@ -117,7 +117,7 @@ void program_openfile()
 		program_transbuf[i] = fontsys_fonttoascii[peek(0x7000 + program_dir_selectedrow * DIR_ENTRY_SIZE + i)];
 
 	sdc_hyppo_loadfile_attic();
-*/
+
 }
 
 void program_init()
@@ -229,7 +229,7 @@ void program_processkeyboard()
 		{
 			modplay_disable();
 			program_openfile();
-			modplay_init(MODADRESS);
+			modplay_init(MODADRESS, ATTICADDRESS);
 			modplay_enable();
 		}
 	}
