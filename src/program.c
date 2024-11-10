@@ -105,7 +105,7 @@ void program_openfile()
 	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
 		program_transbuf[i] = fontsys_fonttoascii[peek(0x7000 + program_dir_selectedrow*DIR_ENTRY_SIZE + i)];
 
-	sdc_hyppoopenfile();
+	sdc_hyppo_loadfile();
 }
 
 void program_init()

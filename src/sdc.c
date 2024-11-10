@@ -24,9 +24,14 @@ void sdc_chdir()
 	sdc_asm_chdir();
 }
 
-void sdc_hyppoopenfile()
+void sdc_hyppo_loadfile()
 {
-	sdc_asm_hyppoopenfile();
+	sdc_asm_hyppo_loadfile();
+}
+
+void sdc_hyppo_loadfile_attic()
+{
+	sdc_asm_hyppo_loadfile_attic();
 }
 
 void sdc_openfile()
@@ -47,4 +52,9 @@ void sdc_hyppoclosefile()
 void sdc_geterror()
 {
 	sdc_asm_geterror();
+}
+
+void sdc_chunk_readasync()
+{
+	sdc_asm_chunk_readasync();
 }

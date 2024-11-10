@@ -7,8 +7,11 @@ extern void			sdc_asm_opendir();
 extern void			sdc_chdir();
 extern void			sdc_asm_chdir();
 
-extern void			sdc_hyppoopenfile();
-extern void			sdc_asm_hyppoopenfile();
+extern void			sdc_hyppo_loadfile();
+extern void			sdc_asm_hyppo_loadfile();
+
+extern void			sdc_hyppo_loadfile_attic();
+extern void			sdc_asm_hyppo_loadfile_attic();
 
 extern void			sdc_openfile();
 extern void			sdc_asm_openfile();
@@ -21,6 +24,9 @@ extern void			sdc_asm_readfirstsector();
 
 extern void			sdc_geterror();
 extern void			sdc_asm_geterror();
+
+extern void			sdc_chunk_readasync();
+extern void			sdc_asm_chunk_readasync();
 
 extern void			sdc_processdirentry();
 extern void			sdc_setbufferaddressmsb(uint8_t msb);

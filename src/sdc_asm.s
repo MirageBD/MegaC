@@ -163,7 +163,7 @@ sdc_chdirend:
 
 ; ----------------------------------------------------------------------------------------------------
 
-		; caution: there's sdc_asm_openfile and sdc_asm_HYPPOopenfile
+		; caution: there's sdc_asm_openfile and sdc_asm_HYPPO_loadfile
 
 		.public sdc_asm_openfile
 sdc_asm_openfile:
@@ -233,29 +233,47 @@ errorloop3$:
 
 ; ----------------------------------------------------------------------------------------------------
 
-		; caution: there's sdc_asm_openfile and sdc_asm_HYPPOopenfile
-
-		.public sdc_asm_hyppoopenfile
-sdc_asm_hyppoopenfile:
+sdc_asm_hyppo_loadfile_common:
 
 		ldy sdc_transferbuffermsb						; set the hyppo filename from transferbuffer
 		lda #0x2e
 		sta 0xd640
 		clv
-		bcc sdc_asm_hyppoopenfileend
+		bcc sdc_asm_hyppo_loadfileend
 
 		ldx sdc_loadaddresslo
 		ldy sdc_loadaddressmid
 		ldz sdc_loadaddresshi
 
-		lda #0x36										; 0x36 for chip RAM at 0x00ZZYYXX
-		sta 0xd640										; Mega65.HTRAP00
-		clv												; Wasted instruction slot required following hyper trap instruction
-		bcc sdc_asm_hyppoopenfileend
-
 		rts
 
-sdc_asm_hyppoopenfileend:
+; ----------------------------------------------------------------------------------------------------
+
+		; caution: there's sdc_asm_openfile and sdc_asm_HYPPO_loadfile
+
+		.public sdc_asm_hyppo_loadfile
+sdc_asm_hyppo_loadfile:
+
+		jsr sdc_asm_hyppo_loadfile_common
+		lda #0x36										; 0x36 hyppo_loadfile for chip RAM at 0x00ZZYYXX
+		sta 0xd640										; Mega65.HTRAP00
+		clv												; Wasted instruction slot required following hyper trap instruction
+		bcc sdc_asm_hyppo_loadfileend
+		rts
+
+sdc_asm_hyppo_loadfileend:
+		rts
+
+; ----------------------------------------------------------------------------------------------------
+
+		.public sdc_asm_hyppo_loadfile_attic
+sdc_asm_hyppo_loadfile_attic:
+
+		jsr sdc_asm_hyppo_loadfile_common
+		lda #0x3e										; 0x36 hyppo_loadfile for chip RAM at 0x00ZZYYXX
+		sta 0xd640										; Mega65.HTRAP00
+		clv												; Wasted instruction slot required following hyper trap instruction
+		bcc sdc_asm_hyppo_loadfileend
 		rts
 
 ; ----------------------------------------------------------------------------------------------------
@@ -346,3 +364,24 @@ sdc_asm_readfirstsector_fatalerror:
 errorloop$:
 		inc 0xd020
 		jmp errorloop$
+
+; ----------------------------------------------------------------------------------------------------
+
+		.public sdc_asm_chunk_readasync
+sdc_asm_chunk_readasync
+
+		lda 0xd680										; test if sdc is ready
+		and 0x03
+		beq sdc_asm_chunk_sdcready
+		rts
+
+sdc_asm_chunk_sdcready:									; sdc is ready.
+
+sdc_asm_chunk_readnext:
+
+		lda 0x02										; start async read of sector
+		sta 0xd680
+
+		rts
+
+; ----------------------------------------------------------------------------------------------------
