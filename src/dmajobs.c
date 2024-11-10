@@ -53,14 +53,14 @@ dma_job dma_clearscreen1 =
 	.dskipratefrac			= 0x00,
 	.dskiprate_token		= 0x85,
 	.dskiprate				= 0x02,
-	.dbank					= ((SCREEN) >> 20),
+	.dbank					= ((SCREEN + 0) >> 20),
 	.end_options			= 0x00,
 	.command				= 0b00000011, // fill, no chain
 	.count					= (RRBSCREENWIDTH*50),
 	.source					= (((FONTCHARMEM/64 + 0 /*star=10*/) >> 0)) & 0xff,
 	.source_bank			= 0x00,
-	.destination			= ((SCREEN) & 0xffff),
-	.destination_bank		= (((SCREEN) >> 16) & 0x0f),
+	.destination			= ((SCREEN + 0) & 0xffff),
+	.destination_bank		= (((SCREEN + 0) >> 16) & 0x0f),
 	.modulo					= 0x0000
 };
 
