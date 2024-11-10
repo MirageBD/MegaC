@@ -42,6 +42,7 @@
 uint8_t*	direntryptr		= (uint8_t *)0x7000;
 uint16_t	numdirentries	= 0;
 uint8_t		program_keydowncount = 0;
+uint8_t		program_keydowndelay = 0;
 uint8_t		program_dir_selectedrow = 0;
 uint8_t*	program_transbuf;
 
@@ -104,7 +105,7 @@ void program_openfile()
 	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
 		program_transbuf[i] = fontsys_fonttoascii[peek(0x7000 + program_dir_selectedrow*DIR_ENTRY_SIZE + i)];
 
-	sdc_openfile();
+	sdc_hyppoopenfile();
 }
 
 void program_init()
@@ -178,15 +179,29 @@ void program_processkeyboard()
 
 	if(keyboard_keypressed(KEYBOARD_CURSORDOWN) == 1)
 	{
-		if((program_keydowncount % 4) == 0)
+		program_keydowndelay--;
+		if(program_keydowndelay == 0)
+			program_keydowndelay = 1;
+
+		if(program_keydowncount == 0)
 			program_dir_selectedrow++;
+
 		program_keydowncount++;
+		if(program_keydowncount > program_keydowndelay)
+			program_keydowncount = 0;
 	}
 	else if(keyboard_keypressed(KEYBOARD_CURSORUP) == 1)
 	{
-		if((program_keydowncount % 4) == 0)
+		program_keydowndelay--;
+		if(program_keydowndelay == 0)
+			program_keydowndelay = 1;
+
+		if(program_keydowncount == 0)
 			program_dir_selectedrow--;
+
 		program_keydowncount++;
+		if(program_keydowncount > program_keydowndelay)
+			program_keydowncount = 0;
 	}
 	else if(keyboard_keypressed(KEYBOARD_RETURN))
 	{
@@ -208,6 +223,7 @@ void program_processkeyboard()
 	}
 	else
 	{
+		program_keydowndelay = 32;
 		program_keydowncount = 0;
 	}
 }

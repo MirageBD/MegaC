@@ -24,7 +24,27 @@ void sdc_chdir()
 	sdc_asm_chdir();
 }
 
+void sdc_hyppoopenfile()
+{
+	sdc_asm_hyppoopenfile();
+}
+
 void sdc_openfile()
 {
 	sdc_asm_openfile();
+}
+
+void sdc_readfirstsector()
+{
+	sdc_asm_readfirstsector();
+}
+
+void sdc_hyppoclosefile()
+{
+	sdc_asm_hyppoclosefile();
+}
+
+void sdc_geterror()
+{
+	sdc_asm_geterror();
 }

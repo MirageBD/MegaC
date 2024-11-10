@@ -120,6 +120,8 @@ else
 ifeq ($(attachdebugger), 1)
 	cmd.exe /c "$(XMEGA65) -uartmon :4510 -autoload -8 $(EXE_DIR)/hello.d81" & m65dbg -l tcp 4510
 else
+	mega65_ftp -d "C:\Users\larsv\AppData\Roaming\xemu-lgb\mega65\mega65.img" -c "put .\bin\song.mod song.mod" -c "quit"
+	mega65_ftp -d "C:\Users\larsv\AppData\Roaming\xemu-lgb\mega65\mega65.img" -c "put .\bin\elmar.mod elmar.mod" -c "quit"
 	cmd.exe /c "$(XMEGA65) -autoload -8 $(EXE_DIR)/hello.d81"
 endif
 endif
