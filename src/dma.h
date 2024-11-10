@@ -24,6 +24,24 @@ typedef struct _dma_job
 	uint16_t	modulo;
 } dma_job;
 
+typedef struct _dma_copyjob
+{
+	uint8_t		sourcemb_token;
+	uint8_t		sourcemb;
+	uint8_t		destmb_token;
+	uint8_t		destmb;
+	uint8_t		format;
+	uint8_t		endtokenlist;
+	uint8_t		command_lo;
+	uint16_t	count;
+	uint16_t	source_addr;
+	uint8_t		source_bank_and_flags;
+	uint16_t	dest_addr;
+	uint8_t		dest_bank_and_flags;
+	uint8_t		command_hi;
+	uint16_t	modulo_and_mode;
+} dma_copyjob;
+
 void run_dma_job(__far char *ptr);
 
 #endif

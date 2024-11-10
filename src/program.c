@@ -153,10 +153,10 @@ void program_drawdirectory()
 		uint8_t attrib = peek(0x7000 + row*DIR_ENTRY_SIZE + 0x0056);
 		uint8_t color = 0x0f;
 		if((attrib & 0b00010000) == 0b00010000)
-			color = 0x4f;
+			color = 0x2f;
 
 		if(row == program_dir_selectedrow)
-			color = ((color & 0xf0) | 0x02);
+			color = ((color & 0xf0) | 0x10);
 
 		poke(((uint8_t *)&fnts_curpal + 1), color);
 

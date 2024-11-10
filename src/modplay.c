@@ -13,6 +13,8 @@
 #include "registers.h"
 #include "dma.h"
 
+dma_copyjob mp_dmacopyjob;
+
 #define MP_MAX_INSTRUMENTS					32
 #define MP_NUMRASTERS						(uint32_t)(2 * 312)	// PAL 0-311, NTSC 0-262
 #define MP_RASTERS_PER_SECOND				(uint32_t)(MP_NUMRASTERS * 50)
@@ -188,67 +190,18 @@ void modplay_disable()
 	poke(0xd71f, 0);
 }
 
-/*
-struct mp_dmalist_11byte
-{
-	uint8_t		command_lo;
-	uint16_t	count;
-	uint16_t	source_addr;
-	uint8_t		source_bank_and_flags;
-	uint16_t	dest_addr;
-	uint8_t		dest_bank_and_flags;
-	uint16_t	modulo;
-};
-struct mp_dmalist_11byte mp_dmalist_11byte;
-
-// c65 DMA job
 void mp_dmacopy(uint32_t source_address, uint32_t destination_address, uint16_t count)
 {
-	mp_dmalist_11byte.count						= count;
-	mp_dmalist_11byte.source_addr				= (source_address & 0xffff);
-	mp_dmalist_11byte.source_bank_and_flags		= (source_address >> 16) & 0x7f;
-	mp_dmalist_11byte.dest_addr					= (destination_address & 0xffff);
-	mp_dmalist_11byte.dest_bank_and_flags		= (destination_address >> 16) & 0x7f;
-
-	DMA.ADDRMSB				= (((uint16_t)&mp_dmalist_11byte) >> 8);
-	DMA.ADDRLSBTRIG			= (((uint16_t)&mp_dmalist_11byte) & 0xff);
-}
-*/
-
-struct mp_dmalist_12byte
-{
-	uint8_t		sourcemb_token;
-	uint8_t		sourcemb;
-	uint8_t		destmb_token;
-	uint8_t		destmb;
-	uint8_t		format;
-	uint8_t		endtokenlist;
-	uint8_t		command_lo;
-	uint16_t	count;
-	uint16_t	source_addr;
-	uint8_t		source_bank_and_flags;
-	uint16_t	dest_addr;
-	uint8_t		dest_bank_and_flags;
-	uint8_t		command_hi;
-	uint16_t	modulo_and_mode;
-};
-struct mp_dmalist_12byte mp_dmalist_12byte;
-
-// extended DMA job
-void mp_dmacopy_ex(uint32_t source_address, uint32_t destination_address, uint16_t count)
-{
-	mp_dmalist_12byte.sourcemb					= (source_address >> 20) & 0xff;		// $80 for attic, $00 for fast ram
-	mp_dmalist_12byte.destmb					= (destination_address >> 20) & 0xff;	// $80 for attic, $00 for fast ram
-	mp_dmalist_12byte.count						= count;
-	mp_dmalist_12byte.source_addr				= (source_address & 0xffff);
-	mp_dmalist_12byte.source_bank_and_flags		= (source_address >> 16) & 0x7f;
-	mp_dmalist_12byte.dest_addr					= (destination_address & 0xffff);
-	mp_dmalist_12byte.dest_bank_and_flags		= (destination_address >> 16) & 0x7f;
+	mp_dmacopyjob.count					= count;
+	mp_dmacopyjob.source_addr			= (source_address           ) & 0xffff;
+	mp_dmacopyjob.source_bank_and_flags	= (source_address      >> 16) & 0x7f;
+	mp_dmacopyjob.dest_addr				= (destination_address      ) & 0xffff;
+	mp_dmacopyjob.dest_bank_and_flags	= (destination_address >> 16) & 0x7f;
 
 	DMA.EN018B				= 0x01;
 	DMA.ADDRBANK			= 0x00;
-	DMA.ADDRMSB				= (((uint16_t)&mp_dmalist_12byte) >> 8);
-	DMA.ETRIG				= (((uint16_t)&mp_dmalist_12byte) & 0xff);
+	DMA.ADDRMSB				= (((uint16_t)&mp_dmacopyjob) >> 8);
+	DMA.ETRIG				= (((uint16_t)&mp_dmacopyjob) & 0xff);
 }
 
 // ------------------------------------------------------------------------------------
@@ -824,7 +777,7 @@ void modplay_play()
 		mp_currow		= mp_row;
 		mp_curpattern	= mp_pattern;
 
-		mp_dmacopy_ex(mod_patterns_data + ((uint16_t)(mod_patternlist[mp_curpattern]) << 10) + (mp_currow << 4), (uint32_t)mp_currowdata, 16);
+		mp_dmacopy(mod_patterns_data + ((uint16_t)(mod_patternlist[mp_curpattern]) << 10) + (mp_currow << 4), (uint32_t)mp_currowdata, 16);
 
 		mp_preprocesseffects(&mp_currowdata[0 ]);
 		mp_preprocesseffects(&mp_currowdata[4 ]);
@@ -878,18 +831,20 @@ void modplay_init(uint32_t attic_address, uint32_t sample_address)
 
 	modplay_disable();
 
-	// set up dma values that don't change
-	mp_dmalist_12byte.command_lo		= 0x00; // copy
-	mp_dmalist_12byte.sourcemb_token	= 0x80;
-	mp_dmalist_12byte.destmb_token		= 0x81;
-	mp_dmalist_12byte.format			= 0x0b;
-	mp_dmalist_12byte.endtokenlist		= 0x00;
-	mp_dmalist_12byte.command_hi		= 0x00;
-
 	mod_sample_addr = sample_address;
 	mod_attic_addr = attic_address;
 
-	mp_dmacopy_ex(mod_attic_addr + 1080, (uint32_t)mod_tmpbuf, 4);						// Check if 15 or 31 instrument mode (M.K.)
+	// set up dma values that don't change
+	mp_dmacopyjob.command_lo		= 0x00; // copy
+	mp_dmacopyjob.sourcemb_token	= 0x80;
+	mp_dmacopyjob.destmb_token		= 0x81;
+	mp_dmacopyjob.format			= 0x0b;
+	mp_dmacopyjob.endtokenlist		= 0x00;
+	mp_dmacopyjob.command_hi		= 0x00;
+	mp_dmacopyjob.sourcemb			= 0x80; // modplay only does DMA copies from attic MB
+	mp_dmacopyjob.destmb			= 0x00; // modplay only does DMA copies to fast MB
+
+	mp_dmacopy(mod_attic_addr + 1080, (uint32_t)mod_tmpbuf, 4);							// Check if 15 or 31 instrument mode (M.K.)
 
 	mod_sigsize = 0;
 	mod_numinstruments = 15;
@@ -920,7 +875,7 @@ void modplay_init(uint32_t attic_address, uint32_t sample_address)
 		// 1 byte  - volume for sample ($00-$40)
 		// 2 bytes - repeat point in words
 		// 2 bytes - repeat length in words
-		mp_dmacopy_ex(mod_attic_addr + 20 + i * 30 + 22, (uint32_t)mod_tmpbuf, 8);		// Get instrument data
+		mp_dmacopy(mod_attic_addr + 20 + i * 30 + 22, (uint32_t)mod_tmpbuf, 8);			// Get instrument data
 		sample_lengths      [i] = mod_tmpbuf[1] + (mod_tmpbuf[0] << 8);
 		sample_lengths      [i] <<= 1;													// Redenominate instrument length into bytes
 
@@ -939,7 +894,7 @@ void modplay_init(uint32_t attic_address, uint32_t sample_address)
 	mp_song_loop_point = lpeek(mod_attic_addr + 20 + mod_numinstruments * 30 + 1);
 
 	mod_numpatterns = 0;
-	mp_dmacopy_ex(mod_patternlist_data, (uint32_t)mod_patternlist, 128);
+	mp_dmacopy(mod_patternlist_data, (uint32_t)mod_patternlist, 128);
 	for(i = 0; i < mod_songlength; i++)
 	{
 		if(mod_patternlist[i] > mod_numpatterns)
@@ -951,7 +906,7 @@ void modplay_init(uint32_t attic_address, uint32_t sample_address)
 	uint32_t mod_attic_sample_data = mod_attic_addr + mod_sample_offset;
 	for(i = 0; i < 5; i++)
 	{
-		mp_dmacopy_ex((mod_attic_sample_data + (uint32_t)i * 0x10000), (mod_sample_addr + (uint32_t)i * 0x10000), 0); // 65536
+		mp_dmacopy((mod_attic_sample_data + (uint32_t)i * 0x10000), (mod_sample_addr + (uint32_t)i * 0x10000), 0); // 65536
 	}
 
 	mod_sample_data = mod_sample_addr;
