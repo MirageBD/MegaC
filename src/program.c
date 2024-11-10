@@ -91,7 +91,7 @@ void program_opendir()
 void program_chdir()
 {
 	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
-		program_transbuf[i] = fontsys_fonttoascii[peek(0x7000 + program_dir_selectedrow*DIR_ENTRY_SIZE + i)];
+		program_transbuf[i] = fontsys_fonttoascii[peek(0x7000 + program_dir_selectedrow * DIR_ENTRY_SIZE + i)];
 
 	sdc_chdir();
 }
@@ -103,9 +103,21 @@ void program_openfile()
 	poke(&sdc_loadaddresshi,  (uint8_t)((MODADRESS >> 16) & 0xff));
 
 	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
-		program_transbuf[i] = fontsys_fonttoascii[peek(0x7000 + program_dir_selectedrow*DIR_ENTRY_SIZE + i)];
+		program_transbuf[i] = fontsys_fonttoascii[peek(0x7000 + program_dir_selectedrow * DIR_ENTRY_SIZE + i)];
 
 	sdc_hyppo_loadfile();
+
+/*
+	// test loading to attic
+	poke(&sdc_loadaddresslo,  (uint8_t)((0x000000 >>  0) & 0xff));
+	poke(&sdc_loadaddressmid, (uint8_t)((0x000000 >>  8) & 0xff));
+	poke(&sdc_loadaddresshi,  (uint8_t)((0x000000 >> 16) & 0xff));
+
+	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
+		program_transbuf[i] = fontsys_fonttoascii[peek(0x7000 + program_dir_selectedrow * DIR_ENTRY_SIZE + i)];
+
+	sdc_hyppo_loadfile_attic();
+*/
 }
 
 void program_init()

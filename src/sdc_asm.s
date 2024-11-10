@@ -270,7 +270,7 @@ sdc_asm_hyppo_loadfileend:
 sdc_asm_hyppo_loadfile_attic:
 
 		jsr sdc_asm_hyppo_loadfile_common
-		lda #0x3e										; 0x36 hyppo_loadfile for chip RAM at 0x00ZZYYXX
+		lda #0x3e										; 0x3e hyppo_loadfile for hyper/attic RAM at $08ZZYYXX
 		sta 0xd640										; Mega65.HTRAP00
 		clv												; Wasted instruction slot required following hyper trap instruction
 		bcc sdc_asm_hyppo_loadfileend
