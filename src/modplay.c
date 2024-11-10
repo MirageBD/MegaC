@@ -187,28 +187,63 @@ void modplay_disable()
 	poke(0xd71f, 0);
 }
 
-struct mp_dmalist
+struct mp_dmalist_11byte
 {
-	uint8_t		command;
+	uint8_t		command_lo;
 	uint16_t	count;
 	uint16_t	source_addr;
-	uint8_t		source_bank;
+	uint8_t		source_bank_and_flags;
 	uint16_t	dest_addr;
-	uint8_t		dest_bank;
+	uint8_t		dest_bank_and_flags;
 	uint16_t	modulo;
 };
-struct mp_dmalist mp_dmalist;
+struct mp_dmalist_11byte mp_dmalist_11byte;
 
+struct mp_dmalist_12byte
+{
+	uint8_t		style;
+	uint8_t		sourcemb;
+	uint8_t		destmb;
+	uint8_t		command_lo;
+	uint16_t	count;
+	uint16_t	source_addr;
+	uint8_t		source_bank_and_flags;
+	uint16_t	dest_addr;
+	uint8_t		dest_bank_and_flags;
+	uint8_t		command_hi;
+	uint16_t	modulo_and_mode;
+};
+struct mp_dmalist_12byte mp_dmalist_12byte;
+
+// c65 DMA job
 void mp_dmacopy(uint32_t source_address, uint32_t destination_address, uint16_t count)
 {
-	mp_dmalist.count		= count;
-	mp_dmalist.source_addr	= (source_address & 0xffff);
-	mp_dmalist.source_bank	= (source_address >> 16) & 0x7f;
-	mp_dmalist.dest_addr	= (destination_address & 0xffff);
-	mp_dmalist.dest_bank	= (destination_address >> 16) & 0x7f;
+	mp_dmalist_11byte.count						= count;
+	mp_dmalist_11byte.source_addr				= (source_address & 0xffff);
+	mp_dmalist_11byte.source_bank_and_flags		= (source_address >> 16) & 0x7f;
+	mp_dmalist_11byte.dest_addr					= (destination_address & 0xffff);
+	mp_dmalist_11byte.dest_bank_and_flags		= (destination_address >> 16) & 0x7f;
 
-	DMA.ADDRMSB				= (((uint16_t)&mp_dmalist) >> 8);
-	DMA.ADDRLSBTRIG			= (((uint16_t)&mp_dmalist) & 0xff);
+	DMA.ADDRMSB				= (((uint16_t)&mp_dmalist_11byte) >> 8);
+	DMA.ADDRLSBTRIG			= (((uint16_t)&mp_dmalist_11byte) & 0xff);
+}
+
+// extended DMA job
+void mp_dmacopy_ex(uint32_t source_address, uint32_t destination_address, uint16_t count)
+{
+	mp_dmalist_12byte.sourcemb					= 0x00;
+	mp_dmalist_12byte.destmb					= 0x00;
+	mp_dmalist_12byte.count						= count;
+	mp_dmalist_12byte.source_addr				= (source_address & 0xffff);
+	mp_dmalist_12byte.source_bank_and_flags		= (source_address >> 16) & 0x7f;
+	mp_dmalist_12byte.dest_addr					= (destination_address & 0xffff);
+	mp_dmalist_12byte.dest_bank_and_flags		= (destination_address >> 16) & 0x7f;
+	mp_dmalist_12byte.command_hi				= 0x00;
+
+	DMA.EN018B				= 0x01;
+	DMA.ADDRBANK			= 0x00;
+	DMA.ADDRMSB				= (((uint16_t)&mp_dmalist_12byte) >> 8);
+	DMA.ETRIG				= (((uint16_t)&mp_dmalist_12byte) & 0xff);
 }
 
 // ------------------------------------------------------------------------------------
@@ -784,7 +819,7 @@ void modplay_play()
 		mp_currow		= mp_row;
 		mp_curpattern	= mp_pattern;
 
-		mp_dmacopy(mod_patterns_data + ((uint16_t)(mod_patternlist[mp_curpattern]) << 10) + (mp_currow << 4), (uint32_t)mp_currowdata, 16);
+		mp_dmacopy_ex(mod_patterns_data + ((uint16_t)(mod_patternlist[mp_curpattern]) << 10) + (mp_currow << 4), (uint32_t)mp_currowdata, 16);
 
 		mp_preprocesseffects(&mp_currowdata[0 ]);
 		mp_preprocesseffects(&mp_currowdata[4 ]);
@@ -839,11 +874,13 @@ void modplay_init(uint32_t address)
 	modplay_disable();
 
 	// we only use copies in modplay functions, no fills, so set up one time only
-	mp_dmalist.command	= 0x00; // copy
+	mp_dmalist_11byte.command_lo	= 0x00; // copy
+	mp_dmalist_12byte.command_lo	= 0x00; // copy
+	mp_dmalist_12byte.style			= 0x81;
 
 	mod_addr = address;
 
-	mp_dmacopy(mod_addr + 1080, (uint32_t)mod_tmpbuf, 4);								// Check if 15 or 31 instrument mode (M.K.)
+	mp_dmacopy_ex(mod_addr + 1080, (uint32_t)mod_tmpbuf, 4);							// Check if 15 or 31 instrument mode (M.K.)
 
 	mod_sigsize = 0;
 	mod_numinstruments = 15;
@@ -862,7 +899,7 @@ void modplay_init(uint32_t address)
 	}
 
 	mod_patternlist_offset = 20 + mod_numinstruments * 30 + 2;
-	mod_patterns_offset = mod_sigsize + mod_patternlist_offset + 128;  // 600 for 15 instruments, 1084 for 31
+	mod_patterns_offset = mod_sigsize + mod_patternlist_offset + 128;					// 600 for 15 instruments, 1084 for 31
 
 	mod_patterns_data = mod_addr + mod_patterns_offset;
 	mod_patternlist_data = mod_addr + mod_patternlist_offset;
@@ -874,7 +911,7 @@ void modplay_init(uint32_t address)
 		// 1 byte  - volume for sample ($00-$40)
 		// 2 bytes - repeat point in words
 		// 2 bytes - repeat length in words
-		mp_dmacopy(mod_addr + 0x14 + i * 30 + 22, (uint32_t)mod_tmpbuf, 8);				// Get instrument data for plucking
+		mp_dmacopy_ex(mod_addr + 0x14 + i * 30 + 22, (uint32_t)mod_tmpbuf, 8);			// Get instrument data for plucking
 		sample_lengths      [i] = mod_tmpbuf[1] + (mod_tmpbuf[0] << 8);
 		sample_lengths      [i] <<= 1;													// Redenominate instrument length into bytes
 
@@ -894,7 +931,7 @@ void modplay_init(uint32_t address)
 
 	mod_numpatterns = 0;
 
-	mp_dmacopy(mod_patternlist_data, (uint32_t)mod_patternlist, 128);
+	mp_dmacopy_ex(mod_patternlist_data, (uint32_t)mod_patternlist, 128);
 	for(i = 0; i < mod_songlength; i++)
 	{
 		if(mod_patternlist[i] > mod_numpatterns)
