@@ -98,17 +98,7 @@ void program_chdir()
 
 void program_openfile()
 {
-	poke(&sdc_loadaddresslo,  (uint8_t)((MODADRESS >>  0) & 0xff));
-	poke(&sdc_loadaddressmid, (uint8_t)((MODADRESS >>  8) & 0xff));
-	poke(&sdc_loadaddresshi,  (uint8_t)((MODADRESS >> 16) & 0xff));
-
-	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
-		program_transbuf[i] = fontsys_fonttoascii[peek(0x7000 + program_dir_selectedrow * DIR_ENTRY_SIZE + i)];
-
-	sdc_hyppo_loadfile();
-
-
-	// test loading to attic
+	// load mod into attic (max $8000000 - $8050000)
 	poke(&sdc_loadaddresslo,  (uint8_t)((0x000000 >>  0) & 0xff));
 	poke(&sdc_loadaddressmid, (uint8_t)((0x000000 >>  8) & 0xff));
 	poke(&sdc_loadaddresshi,  (uint8_t)((0x000000 >> 16) & 0xff));
@@ -117,7 +107,6 @@ void program_openfile()
 		program_transbuf[i] = fontsys_fonttoascii[peek(0x7000 + program_dir_selectedrow * DIR_ENTRY_SIZE + i)];
 
 	sdc_hyppo_loadfile_attic();
-
 }
 
 void program_init()
@@ -229,7 +218,7 @@ void program_processkeyboard()
 		{
 			modplay_disable();
 			program_openfile();
-			modplay_init(MODADRESS, ATTICADDRESS);
+			modplay_init(ATTICADDRESS, SAMPLEADRESS);
 			modplay_enable();
 		}
 	}

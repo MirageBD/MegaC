@@ -15,7 +15,7 @@
 
 #define MAPPEDCOLOURMEM			0x08000
 
-#define MODADRESS				0x13200 // $60000-$13200 = $4ce00 bytes for mod = #314880 bytes = 307kb
+#define SAMPLEADRESS			0x13200 // $60000-$13200 = $4ce00 bytes for mod = #314880 bytes = 307kb
 
 #define ATTICADDRESS			0x08000000
 
