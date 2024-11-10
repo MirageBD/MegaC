@@ -93,8 +93,14 @@ uint8_t			sample_address2;
 // MOD DATA FOR 1 MOD ----------------------------------------
 
 uint32_t		mod_addr;
-uint16_t		mod_song_offset;
+uint8_t			mod_sigsize;					// size of signature (0 or 4)
+uint8_t			mod_numinstruments;
+uint32_t		mod_sample_offset;
 uint32_t		mod_sample_data;
+uint32_t		mod_patternlist_offset;
+uint32_t		mod_patterns_offset;
+uint32_t		mod_patterns_data;
+uint32_t		mod_patternlist_data;
 uint8_t			mod_numpatterns;
 uint8_t			mod_songlength;
 uint8_t			mod_speed;
@@ -778,7 +784,7 @@ void modplay_play()
 		mp_currow		= mp_row;
 		mp_curpattern	= mp_pattern;
 
-		mp_dmacopy(mod_addr + mod_song_offset + ((uint16_t)(mod_patternlist[mp_curpattern]) << 10) + (mp_currow << 4), (uint32_t)mp_currowdata, 16);
+		mp_dmacopy(mod_patterns_data + ((uint16_t)(mod_patternlist[mp_curpattern]) << 10) + (mp_currow << 4), (uint32_t)mp_currowdata, 16);
 
 		mp_preprocesseffects(&mp_currowdata[0 ]);
 		mp_preprocesseffects(&mp_currowdata[4 ]);
@@ -825,7 +831,7 @@ void modplay_play()
 void modplay_init(uint32_t address)
 {
 	uint16_t i;
-	uint8_t a, numinstruments;
+	uint8_t a;
 
 	// turn off saturation
 	AUDIO_DMA.DBGSAT	= 0b00000000;
@@ -839,10 +845,10 @@ void modplay_init(uint32_t address)
 
 	mp_dmacopy(mod_addr + 1080, (uint32_t)mod_tmpbuf, 4);								// Check if 15 or 31 instrument mode (M.K.)
 
-	mod_tmpbuf[4] = 0;
-	numinstruments = 15;
-	mod_song_offset = 1080 - (16 * 30);
+	mod_sigsize = 0;
+	mod_numinstruments = 15;
 
+	mod_tmpbuf[4] = 0;
 	for(i = 0; i < MP_NUM_SIGS; i++)
 	{
 		for(a = 0; a < 4; a++)
@@ -850,12 +856,18 @@ void modplay_init(uint32_t address)
 				break;
 		if(a == 4)
 		{
-			numinstruments = 31;
-			mod_song_offset = 1084;														// case for 31 instruments
+			mod_sigsize = 4;
+			mod_numinstruments = 31;
 		}
 	}
 
-	for(i = 0; i < numinstruments; i++)
+	mod_patternlist_offset = 20 + mod_numinstruments * 30 + 2;
+	mod_patterns_offset = mod_sigsize + mod_patternlist_offset + 128;  // 600 for 15 instruments, 1084 for 31
+
+	mod_patterns_data = mod_addr + mod_patterns_offset;
+	mod_patternlist_data = mod_addr + mod_patternlist_offset;
+
+	for(i = 0; i < mod_numinstruments; i++)
 	{
 		// 2 bytes - sample length in words. multiply by 2 for byte length
 		// 1 byte  - lower fout bits for finetune, upper for
@@ -877,19 +889,20 @@ void modplay_init(uint32_t address)
 		sample_repeatlength [i] = mod_tmpbuf[7] + (mod_tmpbuf[6] << 8);
 	}
 
-	mod_songlength = lpeek(mod_addr + 20 + numinstruments*30 + 0);
-	mp_song_loop_point = lpeek(mod_addr + 20 + numinstruments*30 + 1);
+	mod_songlength = lpeek(mod_addr + 20 + mod_numinstruments * 30 + 0);
+	mp_song_loop_point = lpeek(mod_addr + 20 + mod_numinstruments * 30 + 1);
 
 	mod_numpatterns = 0;
 
-	mp_dmacopy(mod_addr + 20 + numinstruments * 30 + 2, (uint32_t)mod_patternlist, 128);
+	mp_dmacopy(mod_patternlist_data, (uint32_t)mod_patternlist, 128);
 	for(i = 0; i < mod_songlength; i++)
 	{
 		if(mod_patternlist[i] > mod_numpatterns)
 			mod_numpatterns = mod_patternlist[i];
 	}
 
-	mod_sample_data = mod_addr + mod_song_offset + ((uint32_t)mod_numpatterns + 1) * 1024;
+	mod_sample_offset = mod_patterns_offset + ((uint32_t)mod_numpatterns + 1) * 1024;
+	mod_sample_data = mod_addr + mod_sample_offset;
 
 	for(i = 0; i < MP_MAX_INSTRUMENTS; i++)
 	{
