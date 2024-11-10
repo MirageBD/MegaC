@@ -176,8 +176,6 @@ void program_processkeyboard()
 		return;
 	}
 
-	poke(0xd020, 0x0f);
-
 	if(keyboard_keypressed(KEYBOARD_CURSORDOWN) == 1)
 	{
 		program_keydowndelay--;
@@ -212,7 +210,7 @@ void program_processkeyboard()
 		{
 			program_chdir();
 			program_opendir();
-			poke(0xd020, 0x46);
+			//poke(0xd020, 0x46);
 		}
 		else
 		{

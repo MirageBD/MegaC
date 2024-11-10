@@ -188,6 +188,7 @@ void modplay_disable()
 	poke(0xd71f, 0);
 }
 
+/*
 struct mp_dmalist_11byte
 {
 	uint8_t		command_lo;
@@ -199,6 +200,20 @@ struct mp_dmalist_11byte
 	uint16_t	modulo;
 };
 struct mp_dmalist_11byte mp_dmalist_11byte;
+
+// c65 DMA job
+void mp_dmacopy(uint32_t source_address, uint32_t destination_address, uint16_t count)
+{
+	mp_dmalist_11byte.count						= count;
+	mp_dmalist_11byte.source_addr				= (source_address & 0xffff);
+	mp_dmalist_11byte.source_bank_and_flags		= (source_address >> 16) & 0x7f;
+	mp_dmalist_11byte.dest_addr					= (destination_address & 0xffff);
+	mp_dmalist_11byte.dest_bank_and_flags		= (destination_address >> 16) & 0x7f;
+
+	DMA.ADDRMSB				= (((uint16_t)&mp_dmalist_11byte) >> 8);
+	DMA.ADDRLSBTRIG			= (((uint16_t)&mp_dmalist_11byte) & 0xff);
+}
+*/
 
 struct mp_dmalist_12byte
 {
@@ -219,34 +234,16 @@ struct mp_dmalist_12byte
 };
 struct mp_dmalist_12byte mp_dmalist_12byte;
 
-// c65 DMA job
-void mp_dmacopy(uint32_t source_address, uint32_t destination_address, uint16_t count)
-{
-	mp_dmalist_11byte.count						= count;
-	mp_dmalist_11byte.source_addr				= (source_address & 0xffff);
-	mp_dmalist_11byte.source_bank_and_flags		= (source_address >> 16) & 0x7f;
-	mp_dmalist_11byte.dest_addr					= (destination_address & 0xffff);
-	mp_dmalist_11byte.dest_bank_and_flags		= (destination_address >> 16) & 0x7f;
-
-	DMA.ADDRMSB				= (((uint16_t)&mp_dmalist_11byte) >> 8);
-	DMA.ADDRLSBTRIG			= (((uint16_t)&mp_dmalist_11byte) & 0xff);
-}
-
 // extended DMA job
 void mp_dmacopy_ex(uint32_t source_address, uint32_t destination_address, uint16_t count)
 {
-	mp_dmalist_12byte.sourcemb_token			= 0x80;
 	mp_dmalist_12byte.sourcemb					= (source_address >> 20) & 0xff;		// $80 for attic, $00 for fast ram
-	mp_dmalist_12byte.destmb_token				= 0x81;
 	mp_dmalist_12byte.destmb					= (destination_address >> 20) & 0xff;	// $80 for attic, $00 for fast ram
-	mp_dmalist_12byte.format					= 0x0b;
-	mp_dmalist_12byte.endtokenlist				= 0x00;
 	mp_dmalist_12byte.count						= count;
 	mp_dmalist_12byte.source_addr				= (source_address & 0xffff);
 	mp_dmalist_12byte.source_bank_and_flags		= (source_address >> 16) & 0x7f;
 	mp_dmalist_12byte.dest_addr					= (destination_address & 0xffff);
 	mp_dmalist_12byte.dest_bank_and_flags		= (destination_address >> 16) & 0x7f;
-	mp_dmalist_12byte.command_hi				= 0x00;
 
 	DMA.EN018B				= 0x01;
 	DMA.ADDRBANK			= 0x00;
@@ -881,9 +878,13 @@ void modplay_init(uint32_t attic_address, uint32_t sample_address)
 
 	modplay_disable();
 
-	// we only use copies in modplay functions, no fills, so set up one time only
-	mp_dmalist_11byte.command_lo		= 0x00; // copy
+	// set up dma values that don't change
 	mp_dmalist_12byte.command_lo		= 0x00; // copy
+	mp_dmalist_12byte.sourcemb_token	= 0x80;
+	mp_dmalist_12byte.destmb_token		= 0x81;
+	mp_dmalist_12byte.format			= 0x0b;
+	mp_dmalist_12byte.endtokenlist		= 0x00;
+	mp_dmalist_12byte.command_hi		= 0x00;
 
 	mod_sample_addr = sample_address;
 	mod_attic_addr = attic_address;
@@ -1009,18 +1010,15 @@ void modplay_init(uint32_t attic_address, uint32_t sample_address)
 		poke(0xd6f4, i);
 
 		// Now wait at least 16 cycles for it to settle
-		poke(0xd020U, peek(0xd020U));
-		poke(0xd020U, peek(0xd020U));
+		poke(0xd020, peek(0xd020));
+		poke(0xd020, peek(0xd020));
 
 		// set value to 0xff
-		poke(0xd6f5U, 0xff);
+		poke(0xd6f5, 0xff);
 	}
 
 	// finally, enable audio DMA again
 	AUDIO_DMA.AUDEN		= 0b10000000;
-
-	// do test DMA copy from attic ram
-	// mp_dmacopy_ex(0x08000000, 0xc800, 40);
 }
 
 // ------------------------------------------------------------------------------------
