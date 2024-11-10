@@ -778,7 +778,7 @@ void modplay_play()
 		mp_currow		= mp_row;
 		mp_curpattern	= mp_pattern;
 
-		mp_dmacopy(mod_addr + mod_song_offset + (mod_patternlist[mp_curpattern] << 10) + (mp_currow << 4), (uint32_t)mp_currowdata, 16);
+		mp_dmacopy(mod_addr + mod_song_offset + ((uint16_t)(mod_patternlist[mp_curpattern]) << 10) + (mp_currow << 4), (uint32_t)mp_currowdata, 16);
 
 		mp_preprocesseffects(&mp_currowdata[0 ]);
 		mp_preprocesseffects(&mp_currowdata[4 ]);
