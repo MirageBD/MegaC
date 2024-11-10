@@ -19,4 +19,6 @@
 
 #define ATTICADDRESS			0x08000000
 
+#define DIRENTADDRESS           0x7000
+
 #endif

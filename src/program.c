@@ -39,7 +39,7 @@
 
 #define DIR_ENTRY_SIZE	0x57
 
-uint8_t*	direntryptr		= (uint8_t *)0x7000;
+uint8_t*	direntryptr		= (uint8_t *)DIRENTADDRESS;
 uint16_t	numdirentries	= 0;
 uint8_t		program_keydowncount = 0;
 uint8_t		program_keydowndelay = 0;
@@ -81,7 +81,7 @@ void program_settransbuf()
 
 void program_opendir()
 {
-	direntryptr = (uint8_t *)0x7000;
+	direntryptr = (uint8_t *)DIRENTADDRESS;
 	numdirentries = 0;
 	program_dir_selectedrow = 0;
 	sdc_setprocessdirentryfunc((uint16_t)(&main_processdirentry));	// set dir entry process pointer
@@ -91,7 +91,7 @@ void program_opendir()
 void program_chdir()
 {
 	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
-		program_transbuf[i] = fontsys_fonttoascii[peek(0x7000 + program_dir_selectedrow * DIR_ENTRY_SIZE + i)];
+		program_transbuf[i] = fontsys_fonttoascii[peek(DIRENTADDRESS + program_dir_selectedrow * DIR_ENTRY_SIZE + i)];
 
 	sdc_chdir();
 }
@@ -104,7 +104,7 @@ void program_openfile()
 	poke(&sdc_loadaddresshi,  (uint8_t)((0x000000 >> 16) & 0xff));
 
 	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
-		program_transbuf[i] = fontsys_fonttoascii[peek(0x7000 + program_dir_selectedrow * DIR_ENTRY_SIZE + i)];
+		program_transbuf[i] = fontsys_fonttoascii[peek(DIRENTADDRESS + program_dir_selectedrow * DIR_ENTRY_SIZE + i)];
 
 	sdc_hyppo_loadfile_attic();
 }
@@ -150,7 +150,7 @@ void program_drawdirectory()
 		fnts_row = 2 * row;
 		fnts_column = 0;
 		
-		uint8_t attrib = peek(0x7000 + row*DIR_ENTRY_SIZE + 0x0056);
+		uint8_t attrib = peek(DIRENTADDRESS + row*DIR_ENTRY_SIZE + 0x0056);
 		uint8_t color = 0x0f;
 		if((attrib & 0b00010000) == 0b00010000)
 			color = 0x2f;
@@ -160,8 +160,8 @@ void program_drawdirectory()
 
 		poke(((uint8_t *)&fnts_curpal + 1), color);
 
-		poke(((uint8_t *)&fnts_readchar + 1), (uint8_t)(((0x7000 + row*DIR_ENTRY_SIZE) >> 0) & 0xff));
-		poke(((uint8_t *)&fnts_readchar + 2), (uint8_t)(((0x7000 + row*DIR_ENTRY_SIZE) >> 8) & 0xff));
+		poke(((uint8_t *)&fnts_readchar + 1), (uint8_t)(((DIRENTADDRESS + row*DIR_ENTRY_SIZE) >> 0) & 0xff));
+		poke(((uint8_t *)&fnts_readchar + 2), (uint8_t)(((DIRENTADDRESS + row*DIR_ENTRY_SIZE) >> 8) & 0xff));
 		fontsys_asm_test();
 	}
 
@@ -204,7 +204,7 @@ void program_processkeyboard()
 	}
 	else if(keyboard_keypressed(KEYBOARD_RETURN))
 	{
-		uint8_t attrib = peek(0x7000 + program_dir_selectedrow*DIR_ENTRY_SIZE + 0x0056);
+		uint8_t attrib = peek(DIRENTADDRESS + program_dir_selectedrow*DIR_ENTRY_SIZE + 0x0056);
 	
 		if((attrib & 0b00010000) == 0b00010000)
 		{
