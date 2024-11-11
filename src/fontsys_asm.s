@@ -19,6 +19,9 @@ fnts_row		.byte 0
 				.public fnts_column
 fnts_column		.byte 0
 
+				.public fnts_tempbuf
+fnts_tempbuf	.space 0x57
+
 ; ----------------------------------------------------------------------------------------------------
 
 		.public fontsys_asm_init
@@ -48,8 +51,8 @@ fs_il$:	inx
 
 ; ----------------------------------------------------------------------------------------------------
 
-		.public fontsys_asm_test
-fontsys_asm_test:
+		.public fontsys_asm_render
+fontsys_asm_render:
 
 		ldx #0
 
@@ -83,12 +86,13 @@ fnts_readcolumn:
 
 		.public fnts_readchar
 fnts_readchar:
-		lda 0xbabe,x
-		beq fontsys_asm_test_end
+		lda fnts_tempbuf,x
+		beq fontsys_asmrender_end
 
 		phx
 		tax
 
+		clc
 		sta (zp:zpscrdst1),y
 		adc #.byte0 (fontcharmem / 64 + 1 * fnts_numchars) ; 64
 		sta (zp:zpscrdst2),y
@@ -116,7 +120,7 @@ fnts_curpal:
 		inx
 		bra fnts_readchar
 
-fontsys_asm_test_end:
+fontsys_asmrender_end:
 		rts
 
 ; ----------------------------------------------------------------------------------------------------

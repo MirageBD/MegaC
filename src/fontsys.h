@@ -4,14 +4,15 @@
 extern uint8_t fontsys_asciitofont[];
 extern uint8_t fontsys_fonttoascii[];
 
+extern uint8_t fnts_tempbuf;
+
 void fontsys_init();
 void fontsys_map();
 void fontsys_unmap();
-void fontsys_test();
 void fontsys_clearscreen();
 
 extern void fontsys_asm_init();
-extern void fontsys_asm_test();
+extern void fontsys_asm_render();
 
 extern uint8_t fnts_screentablo;
 extern uint8_t fnts_screentabhi;

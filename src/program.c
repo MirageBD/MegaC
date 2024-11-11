@@ -39,7 +39,7 @@
 
 #define DIR_ENTRY_SIZE	0x57
 
-uint8_t*	direntryptr		= (uint8_t *)DIRENTADDRESS;
+uint32_t	direntryoffset	= 0;
 uint16_t	numdirentries	= 0;
 uint8_t		program_keydowncount = 0;
 uint8_t		program_keydowndelay = 0;
@@ -50,16 +50,13 @@ uint8_t		xemu_fudge = 4;
 
 void main_processdirentry()
 {
-	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
-	{
-		direntryptr[i] = fontsys_asciitofont[program_transbuf[i]];
-		direntryptr[i-4096] = program_transbuf[i];
-	}
+	// convert ascii name to font chars
+	for(uint16_t i = 0; i < 64; i++)
+		program_transbuf[i] = fontsys_asciitofont[program_transbuf[i]];
 
-	uint8_t attribute = program_transbuf[0x56];
-	uint8_t isdir = ((attribute & 0b00010000) == 0b00010000);
+	dma_dmacopy(program_transbuf, ATTICDIRENTRIES + direntryoffset, DIR_ENTRY_SIZE);
 
-	direntryptr += DIR_ENTRY_SIZE;
+	direntryoffset += DIR_ENTRY_SIZE;
 	numdirentries++;
 }
 
@@ -73,7 +70,7 @@ void program_loaddata()
 	floppy_iffl_fast_load();										// palette
 
 	// chars are loaded to 0x08100000 in attic ram. copy it back to normal ram, location 0x10000
-	dma_dmacopy(0x08100000, 0x00010000, 0x8000);
+	dma_dmacopy(ATTICFONTCHARMEM, FONTCHARMEM, 0x8000);
 }
 
 void program_settransbuf()
@@ -84,7 +81,7 @@ void program_settransbuf()
 
 void program_opendir()
 {
-	direntryptr = (uint8_t *)DIRENTADDRESS;
+	direntryoffset = 0;
 	numdirentries = 0;
 	program_dir_selectedrow = 0;
 	sdc_setprocessdirentryfunc((uint16_t)(&main_processdirentry));	// set dir entry process pointer
@@ -93,9 +90,6 @@ void program_opendir()
 
 void program_chdir()
 {
-	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
-		program_transbuf[i] = fontsys_fonttoascii[peek(DIRENTADDRESS + program_dir_selectedrow * DIR_ENTRY_SIZE + i)];
-
 	sdc_chdir();
 }
 
@@ -105,9 +99,6 @@ void program_openfile()
 	poke(&sdc_loadaddresslo,  (uint8_t)((0x000000 >>  0) & 0xff));
 	poke(&sdc_loadaddressmid, (uint8_t)((0x000000 >>  8) & 0xff));
 	poke(&sdc_loadaddresshi,  (uint8_t)((0x000000 >> 16) & 0xff));
-
-	for(uint16_t i = 0; i < DIR_ENTRY_SIZE; i++)
-		program_transbuf[i] = fontsys_fonttoascii[peek(DIRENTADDRESS + program_dir_selectedrow * DIR_ENTRY_SIZE + i)];
 
 	sdc_hyppo_loadfile_attic();
 }
@@ -144,12 +135,15 @@ void program_drawdirectory()
 	if(numrows > 25)
 		numrows = 25;
 
+	direntryoffset = 0;
 	for(uint16_t row = 0; row < numrows; row++)
 	{
+		dma_dmacopy(ATTICDIRENTRIES + direntryoffset, (uint32_t)&fnts_tempbuf, DIR_ENTRY_SIZE);	
+
 		fnts_row = 2 * row;
 		fnts_column = 0;
 		
-		uint8_t attrib = peek(DIRENTADDRESS + row*DIR_ENTRY_SIZE + 0x0056);
+		uint8_t attrib = peek(&fnts_tempbuf + 0x56);
 		uint8_t color = 0x0f;
 		if((attrib & 0b00010000) == 0b00010000)
 			color = 0x2f;
@@ -157,11 +151,11 @@ void program_drawdirectory()
 		if(row == program_dir_selectedrow)
 			color = ((color & 0xf0) | 0x10);
 
-		poke(((uint8_t *)&fnts_curpal + 1), color);
+		poke(&fnts_curpal + 1, color);
 
-		poke(((uint8_t *)&fnts_readchar + 1), (uint8_t)(((DIRENTADDRESS + row*DIR_ENTRY_SIZE) >> 0) & 0xff));
-		poke(((uint8_t *)&fnts_readchar + 2), (uint8_t)(((DIRENTADDRESS + row*DIR_ENTRY_SIZE) >> 8) & 0xff));
-		fontsys_asm_test();
+		fontsys_asm_render();
+
+		direntryoffset += DIR_ENTRY_SIZE;
 	}
 
 	fontsys_unmap();
@@ -203,13 +197,17 @@ void program_processkeyboard()
 	}
 	else if(keyboard_keypressed(KEYBOARD_RETURN))
 	{
-		uint8_t attrib = peek(DIRENTADDRESS + program_dir_selectedrow*DIR_ENTRY_SIZE + 0x0056);
+		// get current entry and convert to ascii
+		dma_dmacopy(ATTICDIRENTRIES + program_dir_selectedrow * DIR_ENTRY_SIZE, program_transbuf, DIR_ENTRY_SIZE);	
+		for(uint8_t i = 0; i < 64; i++)
+			program_transbuf[i] = fontsys_fonttoascii[program_transbuf[i]];
+
+		uint8_t attrib = program_transbuf[0x56];
 	
 		if((attrib & 0b00010000) == 0b00010000)
 		{
 			program_chdir();
 			program_opendir();
-			//poke(0xd020, 0x46);
 		}
 		else
 		{

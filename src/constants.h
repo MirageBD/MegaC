@@ -18,7 +18,7 @@
 #define SAMPLEADRESS			0x13200 // $60000-$13200 = $4ce00 bytes for mod = #314880 bytes = 307kb
 
 #define ATTICADDRESS			0x08000000
-
-#define DIRENTADDRESS           0x7000
+#define ATTICFONTCHARMEM        (ATTICADDRESS+0x100000)
+#define ATTICDIRENTRIES         (ATTICADDRESS+0x200000)
 
 #endif
