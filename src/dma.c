@@ -21,8 +21,6 @@ void dma_dmacopy(uint32_t source_address, uint32_t destination_address, uint16_t
 	dma_global_copyjob.dest_addr				= (destination_address      ) & 0xffff;
 	dma_global_copyjob.dest_bank_and_flags		= (destination_address >> 16) & 0x7f;
 
-	// while(1) {}
-
 	DMA.EN018B				= 0x01;
 	DMA.ADDRBANK			= 0x00;
 	DMA.ADDRMSB				= (((uint16_t)&dma_global_copyjob) >> 8);
