@@ -43,6 +43,7 @@ typedef struct _dma_copyjob
 } dma_copyjob;
 
 void dma_runjob(__far char *ptr);
+void dma_dmacopy(uint32_t source_address, uint32_t destination_address, uint16_t count);
 void dma_init();
 
 #endif

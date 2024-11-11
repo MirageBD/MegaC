@@ -71,6 +71,9 @@ void program_loaddata()
 	floppy_iffl_fast_load_init("DATA");
 	floppy_iffl_fast_load(); 										// chars
 	floppy_iffl_fast_load();										// palette
+
+	// chars are loaded to 0x08100000 in attic ram. copy it back to normal ram, location 0x10000
+	dma_dmacopy(0x08100000, 0x00010000, 0x8000);
 }
 
 void program_settransbuf()
