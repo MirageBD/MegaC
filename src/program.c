@@ -55,10 +55,11 @@
 #define STORED_DIR_ENTRY_SIZE	0x97
 
 uint32_t	direntryoffset	= 0;
+uint32_t	rowoffset = 0;
 uint16_t	numdirentries	= 0;
 uint8_t		program_keydowncount = 0;
 uint8_t		program_keydowndelay = 0;
-uint8_t		program_dir_selectedrow = 0;
+int16_t		program_dir_selectedrow = 0;
 uint8_t*	program_transbuf;
 
 uint8_t		xemu_fudge = 8;
@@ -147,11 +148,22 @@ void program_drawdirectory()
 	fontsys_map();
 
 	uint16_t numrows = numdirentries;
-	if(numrows > 25)
-		numrows = 25;
 
-	direntryoffset = 0;
-	for(uint16_t row = 0; row < numrows; row++)
+	rowoffset = 0;
+
+	int16_t startrow = 12-program_dir_selectedrow;
+	if(startrow < 0)
+	{
+		rowoffset = -startrow;
+		startrow = 0;
+	}
+
+	int16_t endrow = startrow + numrows;
+	if(endrow > 25)
+		endrow = 25;
+
+	direntryoffset = rowoffset * STORED_DIR_ENTRY_SIZE;
+	for(uint16_t row = startrow; row < endrow; row++)
 	{
 		dma_dmacopy(ATTICDIRENTRIES + DIR_ENTRY_SIZE - 1 - 4 + direntryoffset, (uint32_t)&fnts_tempbuf, 0x40 + 1 + 4);	// -1 for attribute, -4 for file length
 
@@ -163,8 +175,8 @@ void program_drawdirectory()
 		if((attrib & 0b00010000) == 0b00010000)
 			color = 0x2f;
 
-		if(row == program_dir_selectedrow)
-			color = ((color & 0xf0) | 0x10);
+		//if(row == 12)
+		//	color = ((color & 0xf0) | 0x10);
 
 		poke(&fnts_curpal + 1, color);
 
@@ -193,6 +205,9 @@ void program_processkeyboard()
 		if(program_keydowncount == 0)
 			program_dir_selectedrow++;
 
+		if(program_dir_selectedrow >= numdirentries)
+			program_dir_selectedrow = numdirentries - 1;
+
 		program_keydowncount++;
 		if(program_keydowncount > program_keydowndelay)
 			program_keydowncount = 0;
@@ -205,6 +220,9 @@ void program_processkeyboard()
 
 		if(program_keydowncount == 0)
 			program_dir_selectedrow--;
+
+		if(program_dir_selectedrow < 0)
+			program_dir_selectedrow = 0;
 
 		program_keydowncount++;
 		if(program_keydowncount > program_keydowndelay)

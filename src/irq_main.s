@@ -21,19 +21,17 @@ irq_main:
 			lda #0x0f
 			sta 0xd020
 
-			lda #0x0a
-			sta 0xd020
 			jsr fontsys_clearscreen
-
-			lda #0x14
-			sta 0xd020
-
 			jsr program_update
 
-			lda #0x0f
-			sta 0xd020
-
 			jsr keyboard_update
+
+			lda #0x32 + 12*8 + 2
+			sta 0xd012
+			lda #.byte0 irq_main2
+			sta 0xfffe
+			lda #.byte1 irq_main2
+			sta 0xffff
 
 			plz
 			ply
@@ -44,3 +42,40 @@ irq_main:
 			rti
 
 ; ------------------------------------------------------------------------------------
+
+irq_main2:
+			php
+			pha
+			phx
+			phy
+			phz
+
+			clc
+			lda 0xd012
+			adc #0x07
+
+			ldx #0x10
+			stx 0xd020
+			stx 0xd021
+
+waitr$:		cmp 0xd012
+			bne waitr$
+
+			lda #0x0f
+			sta 0xd020
+			sta 0xd021
+
+			lda #0x08
+			sta 0xd012
+			lda #.byte0 irq_main
+			sta 0xfffe
+			lda #.byte1 irq_main
+			sta 0xffff
+
+			plz
+			ply
+			plx
+			pla
+			plp
+			asl 0xd019
+			rti
