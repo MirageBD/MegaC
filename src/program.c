@@ -37,7 +37,22 @@
 						7					Undefined
 */
 
-#define DIR_ENTRY_SIZE	0x57
+/*
+	STORED FAT dir entry:
+
+	$00		asciiz		The long file name
+	$40		byte		The length of long file name
+	$41		ascii		The ”8.3” file name.
+						The name part is padded with spaces to make it exactly 8 bytes. The 3 bytes of the extension follow. There is no . between the name and the extension. There is no NULL byte.
+	$4e		dword		The cluster number where the file begins. For sub-directories, this is where the FAT dir entries start for that sub-directory.
+	$52		dword		The length of file in bytes.
+	$56		byte		The type and attribute bits.
+
+	$57		asciiz		converted file name
+*/
+
+#define DIR_ENTRY_SIZE			0x57
+#define STORED_DIR_ENTRY_SIZE	0x97
 
 uint32_t	direntryoffset	= 0;
 uint16_t	numdirentries	= 0;
@@ -50,13 +65,13 @@ uint8_t		xemu_fudge = 4;
 
 void main_processdirentry()
 {
-	// convert ascii name to font chars
+	// convert ascii name to font chars and append to end of entry structure
 	for(uint16_t i = 0; i < 64; i++)
-		program_transbuf[i] = fontsys_asciitofont[program_transbuf[i]];
+		program_transbuf[0x57+i] = fontsys_asciitofont[program_transbuf[i]];
 
-	dma_dmacopy(program_transbuf, ATTICDIRENTRIES + direntryoffset, DIR_ENTRY_SIZE);
+	dma_dmacopy(program_transbuf, ATTICDIRENTRIES + direntryoffset, STORED_DIR_ENTRY_SIZE);
 
-	direntryoffset += DIR_ENTRY_SIZE;
+	direntryoffset += STORED_DIR_ENTRY_SIZE;
 	numdirentries++;
 }
 
@@ -105,14 +120,6 @@ void program_openfile()
 
 void program_init()
 {
-	modplay_disable();
-
-	fontsys_init();
-	fontsys_clearscreen();
-
-	program_settransbuf();
-	program_opendir();												// open and read root directory
-
 	// TODO - bank in correct palette
 	// TODO - create DMA job for this
 	for(uint8_t i = 0; i < 255; i++)
@@ -125,6 +132,14 @@ void program_init()
 
 	VIC2.BORDERCOL = 0x0f;
 	VIC2.SCREENCOL = 0x00;
+
+	modplay_disable();
+
+	fontsys_init();
+	fontsys_clearscreen();
+
+	program_settransbuf();
+	program_opendir();												// open and read root directory
 }
 
 void program_drawdirectory()
@@ -138,12 +153,12 @@ void program_drawdirectory()
 	direntryoffset = 0;
 	for(uint16_t row = 0; row < numrows; row++)
 	{
-		dma_dmacopy(ATTICDIRENTRIES + direntryoffset, (uint32_t)&fnts_tempbuf, DIR_ENTRY_SIZE);	
+		dma_dmacopy(ATTICDIRENTRIES + DIR_ENTRY_SIZE - 1 - 4 + direntryoffset, (uint32_t)&fnts_tempbuf, 0x40 + 1 + 4);	// -1 for attribute, -4 for file length
 
 		fnts_row = 2 * row;
 		fnts_column = 0;
 		
-		uint8_t attrib = peek(&fnts_tempbuf + 0x56);
+		uint8_t attrib = peek(&fnts_tempbuf + 4);
 		uint8_t color = 0x0f;
 		if((attrib & 0b00010000) == 0b00010000)
 			color = 0x2f;
@@ -155,7 +170,7 @@ void program_drawdirectory()
 
 		fontsys_asm_render();
 
-		direntryoffset += DIR_ENTRY_SIZE;
+		direntryoffset += STORED_DIR_ENTRY_SIZE;
 	}
 
 	fontsys_unmap();
@@ -197,10 +212,8 @@ void program_processkeyboard()
 	}
 	else if(keyboard_keypressed(KEYBOARD_RETURN))
 	{
-		// get current entry and convert to ascii
-		dma_dmacopy(ATTICDIRENTRIES + program_dir_selectedrow * DIR_ENTRY_SIZE, program_transbuf, DIR_ENTRY_SIZE);	
-		for(uint8_t i = 0; i < 64; i++)
-			program_transbuf[i] = fontsys_fonttoascii[program_transbuf[i]];
+		// get current entry (without converted filename bit)
+		dma_dmacopy(ATTICDIRENTRIES + program_dir_selectedrow * STORED_DIR_ENTRY_SIZE, program_transbuf, DIR_ENTRY_SIZE);	
 
 		uint8_t attrib = program_transbuf[0x56];
 	

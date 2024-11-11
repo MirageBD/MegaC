@@ -20,7 +20,7 @@ fnts_row		.byte 0
 fnts_column		.byte 0
 
 				.public fnts_tempbuf
-fnts_tempbuf	.space 0x57
+fnts_tempbuf	.space 0x45			; 4 filesize + 1 attribute + 64 for filename
 
 ; ----------------------------------------------------------------------------------------------------
 
@@ -86,7 +86,7 @@ fnts_readcolumn:
 
 		.public fnts_readchar
 fnts_readchar:
-		lda fnts_tempbuf,x
+		lda fnts_tempbuf+5,x
 		beq fontsys_asmrender_end
 
 		phx

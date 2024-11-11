@@ -25,13 +25,15 @@ irq_main:
 			sta 0xd020
 			jsr fontsys_clearscreen
 
-			lda #0x02
+			lda #0x14
 			sta 0xd020
-			jsr keyboard_update
+
 			jsr program_update
 
 			lda #0x0f
 			sta 0xd020
+
+			jsr keyboard_update
 
 			plz
 			ply
