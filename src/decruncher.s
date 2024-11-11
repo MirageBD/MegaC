@@ -107,9 +107,16 @@ decrunch:	ldz #0x00
 			jsr getnextbyte
 			sta dc_ldst+2
 			sta dc_mdst+2
-			jsr getnextbyte
-			;sta dc_ldst+3									; ignore 4th byte (attic ram) for now
-			;sta dc_mdst+3
+			jsr getnextbyte									; set attic byte (megabyte). normally a >>20 shift, so shift left 4 bytes to get to 3*8
+			asl a
+			asl a
+			asl a
+			asl a
+			sta dc_lsrcm+1
+			sta dc_msrcm+1
+			sta dc_ldstm+1
+			sta dc_mdstm+1
+
 			clc
 
 			lda #0x80
@@ -130,6 +137,8 @@ dloop:		jsr getnextbit									; after this, carry is 0, bits = 01010101
 			sta dc_lsrc+2
 
 			sta 0xd707										; inline DMA copy
+dc_lsrcm:	.byte 0x80, 0x00								; sourcebank
+dc_ldstm:	.byte 0x81, 0x00								; destbank
 			.byte 0x00										; end of job options
 			.byte 0x00										; copy
 dc_llen:	.word 0x0000									; count
@@ -199,6 +208,8 @@ next1$:		stx dc_cmdh
 			dec dc_msrc+2
 
 next2$:		sta 0xd707										; inline DMA copy
+dc_msrcm:	.byte 0x80, 0x00								; sourcebank
+dc_mdstm:	.byte 0x81, 0x00								; destbank
 			.byte 0x00										; end of job options
 			.byte 0x00										; copy
 dc_mlen:	.word 0x0000									; count
