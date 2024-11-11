@@ -111,14 +111,10 @@ void program_openfile()
 
 void program_init()
 {
-	run_dma_job((__far char *)&dma_clearcolorram1);
-	run_dma_job((__far char *)&dma_clearcolorram2);
-	run_dma_job((__far char *)&dma_clearscreen1);
-	run_dma_job((__far char *)&dma_clearscreen2);
-
 	modplay_disable();
 
 	fontsys_init();
+	fontsys_clearscreen();
 
 	program_settransbuf();
 	program_opendir();												// open and read root directory

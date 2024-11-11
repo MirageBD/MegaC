@@ -68,8 +68,8 @@ void fontsys_unmap()
 
 void fontsys_clearscreen()
 {
-	run_dma_job((__far char *)&dma_clearcolorram1);
-	run_dma_job((__far char *)&dma_clearcolorram2);
-	run_dma_job((__far char *)&dma_clearscreen1);
-	run_dma_job((__far char *)&dma_clearscreen2);
+	dma_runjob((__far char *)&dma_clearcolorram1);
+	dma_runjob((__far char *)&dma_clearcolorram2);
+	dma_runjob((__far char *)&dma_clearscreen1);
+	dma_runjob((__far char *)&dma_clearscreen2);
 }

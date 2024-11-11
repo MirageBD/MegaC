@@ -20,6 +20,8 @@ void main()
 	VIC3.KEY = 0x53;											// do I need an eom after this?
 	EOM
 
+	dma_init();
+
 	CIA1.ICR = 0b01111111;										// disable interrupts
 	CIA2.ICR = 0b01111111;
 	CIA1.ICR;

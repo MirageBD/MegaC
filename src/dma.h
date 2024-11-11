@@ -42,6 +42,7 @@ typedef struct _dma_copyjob
 	uint16_t	modulo_and_mode;
 } dma_copyjob;
 
-void run_dma_job(__far char *ptr);
+void dma_runjob(__far char *ptr);
+void dma_init();
 
 #endif
