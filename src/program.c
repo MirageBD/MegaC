@@ -61,7 +61,7 @@ uint8_t		program_keydowndelay = 0;
 uint8_t		program_dir_selectedrow = 0;
 uint8_t*	program_transbuf;
 
-uint8_t		xemu_fudge = 4;
+uint8_t		xemu_fudge = 8;
 
 void main_processdirentry()
 {
@@ -210,7 +210,7 @@ void program_processkeyboard()
 		if(program_keydowncount > program_keydowndelay)
 			program_keydowncount = 0;
 	}
-	else if(keyboard_keypressed(KEYBOARD_RETURN))
+	else if(keyboard_keyreleased(KEYBOARD_RETURN))
 	{
 		// get current entry (without converted filename bit)
 		dma_dmacopy(ATTICDIRENTRIES + program_dir_selectedrow * STORED_DIR_ENTRY_SIZE, program_transbuf, DIR_ENTRY_SIZE);	
