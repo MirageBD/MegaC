@@ -81,8 +81,7 @@ fnts_readrow:
 		sta zp:zpcoldst2+1
 
 fnts_readcolumn:
-		lda fnts_column
-		tay
+		ldy fnts_column
 
 		.public fnts_readchar
 fnts_readchar:

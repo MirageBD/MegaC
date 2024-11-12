@@ -152,6 +152,10 @@ uint16_t		channel_offsetmem			[4];
 
 // ------------------------------------------------------------------------------------
 
+uint8_t			mp_emptysample				= 0;
+
+// ------------------------------------------------------------------------------------
+
 uint16_t mp_periods[36] =
 {
 	856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480, 453,
@@ -188,6 +192,18 @@ void modplay_disable()
 	poke(0xd71d, 0);
 	poke(0xd71e, 0);
 	poke(0xd71f, 0);
+
+	// set sample address to the empty sample
+	sample_address0 = ((uint32_t)(&mp_emptysample) >>  0) & 0xff;
+	sample_address1 = ((uint32_t)(&mp_emptysample) >>  8) & 0xff;
+	sample_address2 = ((uint32_t)(&mp_emptysample) >> 16) & 0xff;
+
+	for(int i=0; i<4; i++)
+	{
+		poke(0xd72a + i*16, sample_address0);
+		poke(0xd72b + i*16, sample_address1);
+		poke(0xd72c + i*16, sample_address2);
+	}
 }
 
 void mp_dmacopy(uint32_t source_address, uint32_t destination_address, uint16_t count)
@@ -788,13 +804,9 @@ void modplay_play()
 		mod_tempo = mp_nexttempo;
 	}
 
-	poke(0xd020, peek(0xd020) + 16);
 	mp_processnote(0, &mp_currowdata[0 ]);
-	poke(0xd020, peek(0xd020) + 16);
 	mp_processnote(1, &mp_currowdata[4 ]);
-	poke(0xd020, peek(0xd020) + 16);
 	mp_processnote(2, &mp_currowdata[8 ]);
-	poke(0xd020, peek(0xd020) + 16);
 	mp_processnote(3, &mp_currowdata[12]);
 
 	mp_globaltick++;

@@ -180,9 +180,6 @@ void program_drawdirectory()
 		if((attrib & 0b00010000) == 0b00010000)
 			color = 0x2f;
 
-		//if(row == 12)
-		//	color = ((color & 0xf0) | 0x10);
-
 		poke(&fnts_curpal + 1, color);
 
 		fontsys_asm_render();

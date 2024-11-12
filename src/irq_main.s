@@ -1,8 +1,16 @@
+			;.rtmodel version,"1"
+			;.rtmodel codeModel,"plain"
+			;.rtmodel core,"45gs02"
+			;.rtmodel target,"mega65"
+			
 			.extern modplay_play
 			.extern keyboard_update
 			.extern keyboard_test
 			.extern fontsys_clearscreen
 			.extern program_update
+			.extern _Zp
+
+zp_cadr		.equlab	_Zp + 40
 
 ; ------------------------------------------------------------------------------------
 
@@ -14,16 +22,13 @@ irq_main:
 			phy
 			phz
 
-			lda #0x06
-			sta 0xd020
-			jsr modplay_play
-
 			lda #0x0f
 			sta 0xd020
+			sta 0xd021
 
+			jsr modplay_play
 			jsr fontsys_clearscreen
 			jsr program_update
-
 			jsr keyboard_update
 
 			lda #0x32 + 12*8 + 1
@@ -74,7 +79,93 @@ waitr2$:	cmp 0xd012
 			stx 0xd30f
 			stx 0xd32f
 
-			lda #0x08
+
+			ldx #0x00
+
+loopsamplerend$:
+			lda 0xd72a
+			sta zp_cadr+0
+			lda 0xd72b
+			sta zp_cadr+1
+			lda 0xd72c
+			sta zp_cadr+2
+			lda #0x00
+			sta zp_cadr+3
+
+			ldz #0x00
+			lda [zp:zp_cadr],z
+			lsr a
+
+			asl a						; swap nybbles
+			adc #0x80
+			rol a
+			asl a
+			adc #0x80
+			rol a
+
+			sta 0xd10f
+
+			lda 0xd73a
+			sta zp_cadr+0
+			lda 0xd73b
+			sta zp_cadr+1
+			lda 0xd73c
+			sta zp_cadr+2
+			lda #0x00
+			sta zp_cadr+3
+
+			ldz #0x00
+			lda [zp:zp_cadr],z
+			lsr a
+
+			asl a						; swap nybbles
+			adc #0x80
+			rol a
+			asl a
+			adc #0x80
+			rol a
+
+			sta 0xd20f
+
+			lda 0xd74a
+			sta zp_cadr+0
+			lda 0xd74b
+			sta zp_cadr+1
+			lda 0xd74c
+			sta zp_cadr+2
+			lda #0x00
+			sta zp_cadr+3
+
+			ldz #0x00
+			lda [zp:zp_cadr],z
+			lsr a
+
+			asl a						; swap nybbles
+			adc #0x80
+			rol a
+			asl a
+			adc #0x80
+			rol a
+
+			sta 0xd30f
+
+			lda 0xd012
+waitr4$:	cmp 0xd012
+			beq waitr4$
+
+			inx
+			cpx #50
+			beq loopsamplerendend$
+			jmp loopsamplerend$
+
+loopsamplerendend$:
+
+			lda #0x00
+			sta 0xd10f
+			sta 0xd20f
+			sta 0xd30f
+
+			lda #0xff
 			sta 0xd012
 			lda #.byte0 irq_main
 			sta 0xfffe
