@@ -162,6 +162,11 @@ void program_drawdirectory()
 	if(endrow > 25)
 		endrow = 25;
 
+	if(numdirentries - program_dir_selectedrow < 12)
+	{
+		endrow = 12 + (numdirentries - program_dir_selectedrow);
+	}
+
 	direntryoffset = rowoffset * STORED_DIR_ENTRY_SIZE;
 	for(uint16_t row = startrow; row < endrow; row++)
 	{
