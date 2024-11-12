@@ -66,6 +66,16 @@ uint8_t		xemu_fudge = 8;
 
 void main_processdirentry()
 {
+	if(program_transbuf[0x00] == 0x2e)
+	{
+		if(program_transbuf[0x01] == 0x00) // "." - dont process
+			return;
+
+		if(program_transbuf[0x01] == 0x2e)
+			if(program_transbuf[0x02] == 0x00) // ".." - dont process
+				return;
+	}
+
 	// convert ascii name to font chars and append to end of entry structure
 	for(uint16_t i = 0; i < 64; i++)
 		program_transbuf[0x57+i] = fontsys_asciitofont[program_transbuf[i]];
