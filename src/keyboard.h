@@ -1,7 +1,7 @@
 #ifndef __INPUT_H
 #define __INPUT_H
 
-#define KEYBOARD_INSERTDEL		(0*8 + 0)					; backspace in xemu
+#define KEYBOARD_INSERTDEL		(0*8 + 0)					// backspace in xemu
 #define KEYBOARD_RETURN			(0*8 + 1)
 #define KEYBOARD_CURSORRIGHT	(0*8 + 2)
 #define KEYBOARD_CURSORDOWN		(0*8 + 7)
