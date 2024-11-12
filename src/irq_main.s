@@ -26,7 +26,7 @@ irq_main:
 
 			jsr keyboard_update
 
-			lda #0x32 + 12*8 + 2
+			lda #0x32 + 12*8 + 1
 			sta 0xd012
 			lda #.byte0 irq_main2
 			sta 0xfffe
@@ -50,20 +50,29 @@ irq_main2:
 			phy
 			phz
 
+			lda 0xd012
+waitr1$:	cmp 0xd012
+			beq waitr1$
+
 			clc
 			lda 0xd012
-			adc #0x07
+			adc #0x08
 
-			ldx #0x10
-			stx 0xd020
-			stx 0xd021
+			ldx #0xe2
+			stx 0xd20f
+			stx 0xd22f
+			ldx #0xf4
+			stx 0xd30f
+			stx 0xd32f
 
-waitr$:		cmp 0xd012
-			bne waitr$
+waitr2$:	cmp 0xd012
+			bne waitr2$
 
-			lda #0x0f
-			sta 0xd020
-			sta 0xd021
+			ldx #0x00
+			stx 0xd20f
+			stx 0xd22f
+			stx 0xd30f
+			stx 0xd32f
 
 			lda #0x08
 			sta 0xd012

@@ -162,7 +162,7 @@ void program_drawdirectory()
 	if(endrow > 25)
 		endrow = 25;
 
-	if(numdirentries - program_dir_selectedrow < 12)
+	if(numdirentries - program_dir_selectedrow < 13)
 	{
 		endrow = 12 + (numdirentries - program_dir_selectedrow);
 	}
