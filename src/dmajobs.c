@@ -15,7 +15,7 @@ dma_job dma_clearcolorram1 =
 	.end_options			= 0x00,
 	.command				= 0b00000011, // fill, no chain
 	.count					= (RRBSCREENWIDTH*50),
-	.source					= 0b0000000000001000, // 00001000 = NCM chars
+	.source					= 0b0000000000001100, // 00001000 = NCM chars, trim 8 pixels
 	.source_bank			= 0x00,
 	.destination			= ((SAFE_COLOR_RAM + 0) & 0xffff),
 	.destination_bank		= (((SAFE_COLOR_RAM + 0) >> 16) & 0x0f),
