@@ -11,7 +11,9 @@ void fontsys_unmap();
 void fontsys_clearscreen();
 
 extern void fontsys_asm_init();
+extern void fontsys_asm_setupscreenpos();
 extern void fontsys_asm_render();
+extern void fontsys_asm_rendergotox();
 
 extern uint8_t fnts_screentablo;
 extern uint8_t fnts_screentabhi;

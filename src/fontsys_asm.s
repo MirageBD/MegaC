@@ -51,14 +51,11 @@ fs_il$:	inx
 
 ; ----------------------------------------------------------------------------------------------------
 
-		.public fontsys_asm_render
-fontsys_asm_render:
-
-		ldx #0
+		.public fontsys_asm_setupscreenpos
+fontsys_asm_setupscreenpos:
 
 fnts_readrow:
-		lda fnts_row
-		tay
+		ldy fnts_row
 
 		lda fnts_screentablo+0,y
 		sta zp:zpscrdst1+0
@@ -80,8 +77,16 @@ fnts_readrow:
 		lda fnts_attribtabhi+1,y
 		sta zp:zpcoldst2+1
 
-fnts_readcolumn:
+		rts
+
+; ----------------------------------------------------------------------------------------------------
+
+		.public fontsys_asm_render
+fontsys_asm_render:
+
 		ldy fnts_column
+
+		ldx #0
 
 		.public fnts_readchar
 fnts_readchar:
@@ -91,8 +96,8 @@ fnts_readchar:
 		phx
 		tax
 
-		clc
 		sta (zp:zpscrdst1),y
+		clc
 		adc #.byte0 (fontcharmem / 64 + 1 * fnts_numchars) ; 64
 		sta (zp:zpscrdst2),y
 
@@ -120,6 +125,44 @@ fnts_curpal:
 		bra fnts_readchar
 
 fontsys_asmrender_end:
+
+/*
+		jsr fontsys_asm_rendergotox
+
+		lda #0x10
+		sta (zp:zpscrdst1),y
+		clc
+		adc #.byte0 (fontcharmem / 64 + 1 * fnts_numchars) ; 64
+		sta (zp:zpscrdst2),y
+*/
+
+		rts
+
+; ----------------------------------------------------------------------------------------------------
+
+		.public fontsys_asm_rendergotox
+fontsys_asm_rendergotox:
+
+		lda #0b00010000				; set gotox
+		sta (zp:zpcoldst1),y
+		sta (zp:zpcoldst2),y
+
+		lda #.byte0 300
+		sta (zp:zpscrdst1),y
+		sta (zp:zpscrdst2),y
+
+		iny
+
+		lda #0						; clear pixel row mask flags
+		sta (zp:zpcoldst1),y
+		sta (zp:zpcoldst2),y
+
+		lda #.byte1 300
+		sta (zp:zpscrdst1),y
+		sta (zp:zpscrdst2),y
+
+		iny
+
 		rts
 
 ; ----------------------------------------------------------------------------------------------------

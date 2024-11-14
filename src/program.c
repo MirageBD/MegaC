@@ -192,6 +192,7 @@ void program_drawdirectory()
 
 		poke(&fnts_curpal + 1, color);
 
+		fontsys_asm_setupscreenpos();
 		fontsys_asm_render();
 
 		direntryoffset += STORED_DIR_ENTRY_SIZE;
