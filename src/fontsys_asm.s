@@ -20,7 +20,7 @@ fnts_row		.byte 0
 fnts_column		.byte 0
 
 				.public fnts_tempbuf
-fnts_tempbuf	.space 0x45			; 4 filesize + 1 attribute + 64 for filename
+fnts_tempbuf	.space 0x4f			; $40 for filename + $0a for filesize string + $04 filesize + $01 attribute
 
 ; ----------------------------------------------------------------------------------------------------
 
@@ -126,15 +126,29 @@ fnts_curpal:
 
 fontsys_asmrender_end:
 
-/*
-		jsr fontsys_asm_rendergotox
+		rts
 
-		lda #0x10
+; ----------------------------------------------------------------------------------------------------
+
+		.public fontsys_asm_renderfilesize
+fontsys_asm_renderfilesize:
+
+		ldx #0x00
+		ldy #2*61
+
+fontsys_asm_renderfilesizeloop:
+		lda fnts_tempbuf+5+64,x
 		sta (zp:zpscrdst1),y
 		clc
 		adc #.byte0 (fontcharmem / 64 + 1 * fnts_numchars) ; 64
 		sta (zp:zpscrdst2),y
-*/
+
+		iny
+		iny
+
+		inx
+		cpx #10
+		bne fontsys_asm_renderfilesizeloop
 
 		rts
 
@@ -143,11 +157,13 @@ fontsys_asmrender_end:
 		.public fontsys_asm_rendergotox
 fontsys_asm_rendergotox:
 
+		ldy #2*60
+
 		lda #0b00010000				; set gotox
 		sta (zp:zpcoldst1),y
 		sta (zp:zpcoldst2),y
 
-		lda #.byte0 300
+		lda #.byte0 400
 		sta (zp:zpscrdst1),y
 		sta (zp:zpscrdst2),y
 
@@ -157,7 +173,7 @@ fontsys_asm_rendergotox:
 		sta (zp:zpcoldst1),y
 		sta (zp:zpcoldst2),y
 
-		lda #.byte1 300
+		lda #.byte1 400
 		sta (zp:zpscrdst1),y
 		sta (zp:zpscrdst2),y
 
@@ -194,5 +210,95 @@ fnts_screentabhi:	.space 50		; .byte >(screen          + rrbscreenwidth2 * I)
 fnts_attribtablo:	.space 50		; .byte <(mappedcolourmem + rrbscreenwidth2 * I)
 					.public fnts_attribtabhi
 fnts_attribtabhi:	.space 50		; .byte >(mappedcolourmem + rrbscreenwidth2 * I)
+
+; ----------------------------------------------------------------------------------------------------
+
+			.public fnts_bin
+fnts_bin	.long  0x00ffffff	; A test value to convert (LSB first)
+			.public fnts_bcd
+fnts_bcd	.space 5			; Should end up as $45,$23,$01
+
+			.public fnts_binstring
+fnts_binstring
+			.space 10
+
+			.public fontsys_convertfilesizetostring
+fontsys_convertfilesizetostring:
+
+			sed					; Switch to decimal mode
+			lda #0				; Ensure the result is clear
+			sta fnts_bcd+0
+			sta fnts_bcd+1
+			sta fnts_bcd+2
+			sta fnts_bcd+3
+			sta fnts_bcd+4
+
+			ldx #32				; The number of source bits
+       
+cnvbit:		asl fnts_bin+0		; Shift out one bit
+			rol fnts_bin+1
+			rol fnts_bin+2
+			rol fnts_bin+3
+
+			lda fnts_bcd+0		; And add into result
+			adc fnts_bcd+0
+			sta fnts_bcd+0
+			lda fnts_bcd+1		; propagating any carry
+			adc fnts_bcd+1
+			sta fnts_bcd+1
+			lda fnts_bcd+2		; ... thru whole result
+			adc fnts_bcd+2
+			sta fnts_bcd+2
+			lda fnts_bcd+3		; ... thru whole result
+			adc fnts_bcd+3
+			sta fnts_bcd+3
+			lda fnts_bcd+4		; ... thru whole result
+			adc fnts_bcd+4
+			sta fnts_bcd+4
+
+			dex					; And repeat for next bit
+			bne cnvbit
+			
+			cld					; Back to binary
+
+			ldy #0
+			ldx #4
+
+tostr:		lda fnts_bcd,x
+			lsr a
+			lsr a
+			lsr a
+			lsr a
+			sta fnts_binstring,y
+
+			lda fnts_bcd,x
+			and #0x0f
+			sta fnts_binstring+1,y
+			iny
+			iny
+			dex
+			bpl tostr
+
+			ldx #0x00
+trimstart:	lda fnts_binstring,x
+			beq trimstart2
+			bra trimstart3
+trimstart2:	lda #0x63
+			sta fnts_binstring,x
+			inx
+			cpx #10
+			bne trimstart
+			bra trimstartend
+
+trimstart3:	lda fnts_binstring,x
+			clc
+			adc #0x10
+			sta fnts_binstring,x
+			inx
+			cpx #10
+			bne trimstart3
+
+trimstartend:
+			rts
 
 ; ----------------------------------------------------------------------------------------------------

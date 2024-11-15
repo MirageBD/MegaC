@@ -48,11 +48,12 @@
 	$52		dword		The length of file in bytes.
 	$56		byte		The type and attribute bits.
 
-	$57		asciiz		converted file name
+	$57		asciiz		converted file name (0x40 bytes)
+	$97		10			10 bytes for filesize string
 */
 
 #define DIR_ENTRY_SIZE			0x57
-#define STORED_DIR_ENTRY_SIZE	0x97
+#define STORED_DIR_ENTRY_SIZE	0xa1
 
 uint32_t	direntryoffset	= 0;
 uint32_t	rowoffset = 0;
@@ -79,6 +80,15 @@ void main_processdirentry()
 	// convert ascii name to font chars and append to end of entry structure
 	for(uint16_t i = 0; i < 64; i++)
 		program_transbuf[0x57+i] = fontsys_asciitofont[program_transbuf[i]];
+
+	// get filesize and convert to filesize string
+	poke(&fnts_bin + 0, program_transbuf[0x52 + 0]);
+	poke(&fnts_bin + 1, program_transbuf[0x52 + 1]);
+	poke(&fnts_bin + 2, program_transbuf[0x52 + 2]);
+	poke(&fnts_bin + 3, program_transbuf[0x52 + 3]);
+	fontsys_convertfilesizetostring();
+	for(uint16_t i = 0; i < 10; i++)
+		program_transbuf[0x57+64+i] = ((uint8_t *)&fnts_binstring)[i];
 
 	dma_dmacopy(program_transbuf, ATTICDIRENTRIES + direntryoffset, STORED_DIR_ENTRY_SIZE);
 
@@ -180,7 +190,7 @@ void program_drawdirectory()
 	direntryoffset = rowoffset * STORED_DIR_ENTRY_SIZE;
 	for(uint16_t row = startrow; row < endrow; row++)
 	{
-		dma_dmacopy(ATTICDIRENTRIES + DIR_ENTRY_SIZE - 1 - 4 + direntryoffset, (uint32_t)&fnts_tempbuf, 0x40 + 1 + 4);	// -1 for attribute, -4 for file length
+		dma_dmacopy(ATTICDIRENTRIES + DIR_ENTRY_SIZE - 1 - 4 + direntryoffset, (uint32_t)&fnts_tempbuf, 0x40 + 1 + 4 + 10);	// -4 for file length, -1 for attribute, +10 for filesize string
 
 		fnts_row = 2 * row;
 		fnts_column = 0;
@@ -194,6 +204,8 @@ void program_drawdirectory()
 
 		fontsys_asm_setupscreenpos();
 		fontsys_asm_render();
+		fontsys_asm_rendergotox();
+		fontsys_asm_renderfilesize();
 
 		direntryoffset += STORED_DIR_ENTRY_SIZE;
 	}

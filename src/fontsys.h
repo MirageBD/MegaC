@@ -14,6 +14,13 @@ extern void fontsys_asm_init();
 extern void fontsys_asm_setupscreenpos();
 extern void fontsys_asm_render();
 extern void fontsys_asm_rendergotox();
+extern void fontsys_asm_renderfilesize();
+
+extern void fontsys_convertfilesizetostring();
+
+extern uint8_t fnts_bin;
+extern uint8_t fnts_bcd;
+extern uint8_t fnts_binstring;
 
 extern uint8_t fnts_screentablo;
 extern uint8_t fnts_screentabhi;
