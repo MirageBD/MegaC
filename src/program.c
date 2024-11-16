@@ -65,7 +65,7 @@ uint8_t*	program_transbuf;
 
 uint8_t		xemu_fudge = 8;
 
-void main_processdirentry()
+void program_processdirentry()
 {
 	if(program_transbuf[0x00] == 0x2e)
 	{
@@ -92,9 +92,83 @@ void main_processdirentry()
 
 	dma_dmacopy(program_transbuf, ATTICDIRENTRIES + direntryoffset, STORED_DIR_ENTRY_SIZE);
 
+	poke(0xc000 + numdirentries, numdirentries);
+
 	direntryoffset += STORED_DIR_ENTRY_SIZE;
+
 	numdirentries++;
 }
+
+
+void program_sortdirentries()
+{
+	int n = numdirentries;
+	uint8_t swapped;
+
+	// sort directories to front
+	for(uint32_t i = 0; i < n - 1; i++)
+	{
+		swapped = 0;
+		for(uint16_t j = 0; j < n - i - 1; j++)
+		{
+			uint32_t addr1 = (ATTICDIRENTRIES + STORED_DIR_ENTRY_SIZE * peek(0xc000+j+0));
+			uint32_t addr2 = (ATTICDIRENTRIES + STORED_DIR_ENTRY_SIZE * peek(0xc000+j+1));
+
+			uint8_t val1 = (lpeek(addr1 + 0x56) & 0b00010000);
+			uint8_t val2 = (lpeek(addr2 + 0x56) & 0b00010000);
+
+			if (val1 < val2)
+			{
+				uint8_t foo = peek(0xc000 + j);
+				poke(0xc000+j, peek(0xc000+j+1));
+				poke(0xc000+j+1, foo);
+				swapped = 1;
+			}
+		}
+
+		// If no two elements were swapped, then break
+		if (swapped == 0)
+			break;
+	}
+
+	// sort names
+	for(uint32_t i = 0; i < n - 1; i++)
+	{
+		swapped = 0;
+		for(uint16_t j = 0; j < n - i - 1; j++)
+		{
+			uint32_t addr1 = (ATTICDIRENTRIES + STORED_DIR_ENTRY_SIZE * peek(0xc000+j+0));
+			uint32_t addr2 = (ATTICDIRENTRIES + STORED_DIR_ENTRY_SIZE * peek(0xc000+j+1));
+
+			uint8_t val1 = (lpeek(addr1 + 0x56) & 0b00010000);
+			uint8_t val2 = (lpeek(addr2 + 0x56) & 0b00010000);
+			uint8_t val3 = (lpeek(addr1));
+			uint8_t val4 = (lpeek(addr2));
+
+			if (val1 == val2 && val3 > val4)
+			{
+				uint8_t foo = peek(0xc000 + j);
+				poke(0xc000+j, peek(0xc000+j+1));
+				poke(0xc000+j+1, foo);
+				swapped = 1;
+			}
+		}
+
+		// If no two elements were swapped, then break
+		if (swapped == 0)
+			break;
+	}
+
+/*
+	for(uint32_t i = 0; i < numdirentries; i++)
+	{
+		uint32_t addr1 = (ATTICDIRENTRIES + STORED_DIR_ENTRY_SIZE * peek(0xc000+i));
+		uint8_t val1 = lpeek(addr1);
+		poke(0xc000+i, val1);
+	}
+*/
+}
+
 
 void program_loaddata()
 {
@@ -120,8 +194,10 @@ void program_opendir()
 	direntryoffset = 0;
 	numdirentries = 0;
 	program_dir_selectedrow = 0;
-	sdc_setprocessdirentryfunc((uint16_t)(&main_processdirentry));	// set dir entry process pointer
+	sdc_setprocessdirentryfunc((uint16_t)(&program_processdirentry));	// set dir entry process pointer
 	sdc_opendir();													// open and read root directory
+
+	program_sortdirentries();
 }
 
 void program_chdir()
@@ -187,10 +263,11 @@ void program_drawdirectory()
 		endrow = 12 + (numdirentries - program_dir_selectedrow);
 	}
 
-	direntryoffset = rowoffset * STORED_DIR_ENTRY_SIZE;
+	direntryoffset = rowoffset; // * STORED_DIR_ENTRY_SIZE;
 	for(uint16_t row = startrow; row < endrow; row++)
 	{
-		dma_dmacopy(ATTICDIRENTRIES + DIR_ENTRY_SIZE - 1 - 4 + direntryoffset, (uint32_t)&fnts_tempbuf, 0x40 + 1 + 4 + 10);	// -4 for file length, -1 for attribute, +10 for filesize string
+		uint32_t direntry = peek(0xc000+direntryoffset) * STORED_DIR_ENTRY_SIZE;
+		dma_dmacopy(ATTICDIRENTRIES + DIR_ENTRY_SIZE - 1 - 4 + direntry, (uint32_t)&fnts_tempbuf, 0x40 + 1 + 4 + 10);	// -4 for file length, -1 for attribute, +10 for filesize string
 
 		fnts_row = 2 * row;
 		fnts_column = 0;
@@ -207,7 +284,7 @@ void program_drawdirectory()
 		fontsys_asm_rendergotox();
 		fontsys_asm_renderfilesize();
 
-		direntryoffset += STORED_DIR_ENTRY_SIZE;
+		direntryoffset ++; // = STORED_DIR_ENTRY_SIZE;
 	}
 
 	fontsys_unmap();
@@ -255,8 +332,10 @@ void program_processkeyboard()
 	}
 	else if(keyboard_keyreleased(KEYBOARD_RETURN))
 	{
+		uint32_t direntry = peek(0xc000+program_dir_selectedrow);
+
 		// get current entry (without converted filename bit)
-		dma_dmacopy(ATTICDIRENTRIES + program_dir_selectedrow * STORED_DIR_ENTRY_SIZE, program_transbuf, DIR_ENTRY_SIZE);	
+		dma_dmacopy(ATTICDIRENTRIES + direntry * STORED_DIR_ENTRY_SIZE, program_transbuf, DIR_ENTRY_SIZE);	
 
 		uint8_t attrib = program_transbuf[0x56];
 	
