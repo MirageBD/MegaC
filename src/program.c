@@ -142,15 +142,29 @@ void program_sortdirentries()
 
 			uint8_t val1 = (lpeek(addr1 + 0x56) & 0b00010000);
 			uint8_t val2 = (lpeek(addr2 + 0x56) & 0b00010000);
-			uint8_t val3 = (lpeek(addr1));
-			uint8_t val4 = (lpeek(addr2));
 
-			if (val1 == val2 && val3 > val4)
+			if(val1 == val2)
 			{
-				uint8_t foo = peek(0xc000 + j);
-				poke(0xc000+j, peek(0xc000+j+1));
-				poke(0xc000+j+1, foo);
-				swapped = 1;
+				for(uint32_t k = 0; k < 64; k++)
+				{
+					uint8_t val3 = (lpeek(addr1 + k));
+					uint8_t val4 = (lpeek(addr2 + k));
+
+					if(val3 < val4) // already smaller?
+					{
+						k = 64;		// in right order, quit
+					}
+					else if(val3 > val4) // bigger, so swap
+					{
+						uint8_t foo = peek(0xc000 + j);
+						poke(0xc000+j, peek(0xc000+j+1));
+						poke(0xc000+j+1, foo);
+						swapped = 1;
+						k = 64;
+					}
+
+					// val3 == val4 -> continue testing
+				}
 			}
 		}
 
