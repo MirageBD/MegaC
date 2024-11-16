@@ -12,6 +12,7 @@
 #include "macros.h"
 #include "registers.h"
 #include "dma.h"
+#include "modplay.h"
 
 dma_copyjob mp_dmacopyjob;
 
@@ -65,7 +66,7 @@ uint8_t mp_enabled_channels[4] = { 1, 1, 1, 1 };
 
 uint8_t			mp_playing;
 
-uint8_t			mp_done;
+uint8_t			mp_done						= 1;
 uint8_t			mp_patternset;
 uint8_t			mp_row;
 uint8_t			mp_currow;
@@ -170,19 +171,8 @@ void modplay_enable()
 	mp_playing = 1;
 }
 
-void modplay_disable()
+void modplay_mute()
 {
-	mp_playing = 0;
-
-	// disable audio dma
-	AUDIO_DMA.AUDEN		= 0b00000000;
-
-	// Stop all DMA audio first
-	AUDIO_DMA.CHANNELS[0].CONTROL = 0;
-	AUDIO_DMA.CHANNELS[1].CONTROL = 0;
-	AUDIO_DMA.CHANNELS[2].CONTROL = 0;
-	AUDIO_DMA.CHANNELS[3].CONTROL = 0;
-
 	// Mute all channels
 	poke(0xd729, 0);
 	poke(0xd739, 0);
@@ -193,12 +183,26 @@ void modplay_disable()
 	poke(0xd71e, 0);
 	poke(0xd71f, 0);
 
+	// disable audio dma
+	AUDIO_DMA.AUDEN		= 0b00000000;
+
+	// Stop all DMA audio first
+	AUDIO_DMA.CHANNELS[0].CONTROL = 0;
+	AUDIO_DMA.CHANNELS[1].CONTROL = 0;
+	AUDIO_DMA.CHANNELS[2].CONTROL = 0;
+	AUDIO_DMA.CHANNELS[3].CONTROL = 0;
+}
+
+void modplay_disable()
+{
+	mp_playing = 0;
+
 	// set sample address to the empty sample
 	sample_address0 = ((uint32_t)(&mp_emptysample) >>  0) & 0xff;
 	sample_address1 = ((uint32_t)(&mp_emptysample) >>  8) & 0xff;
 	sample_address2 = ((uint32_t)(&mp_emptysample) >> 16) & 0xff;
 
-	for(int i=0; i<4; i++)
+	for(int i = 0; i < 4; i++)
 	{
 		poke(0xd72a + i*16, sample_address0);
 		poke(0xd72b + i*16, sample_address1);
@@ -413,7 +417,11 @@ void mp_processnote(uint8_t channel, uint8_t *data)
 				if(!mp_patternset)
 					mp_pattern++;
 				if(mp_pattern >= mod_songlength)
+				{
+					if(!mp_loop)
+						mp_done = 1;
 					mp_pattern = 0;
+				}
 				mp_row = (effectdata >> 4) * 10 + (effectdata & 0x0f);
 				mp_patternset = 1;
 				if(mp_addflag)
@@ -753,7 +761,7 @@ void mp_processnote(uint8_t channel, uint8_t *data)
 
 void modplay_play()
 {
-	if(!mp_playing)
+	if(!mp_playing || mp_done)
 		return;
 
 	// setup some DMA stuff that stays the same during modplay_play
@@ -772,6 +780,7 @@ void modplay_play()
 	{
 		if(mp_loop)
 		{
+			mp_done			=    0;
 			mp_pattern		=    0;
 			mp_row			=    0;
 			mp_globaltick	=    0;
@@ -833,28 +842,13 @@ void modplay_play()
 
 // ------------------------------------------------------------------------------------
 
-void modplay_init(uint32_t attic_address, uint32_t sample_address)
+void modplay_initmod(uint32_t attic_address, uint32_t sample_address)
 {
 	uint16_t i;
 	uint8_t a;
 
-	// turn off saturation
-	AUDIO_DMA.DBGSAT	= 0b00000000;
-
-	modplay_disable();
-
 	mod_sample_addr = sample_address;
 	mod_attic_addr = attic_address;
-
-	// set up dma values that don't change
-	mp_dmacopyjob.command_lo		= 0x00; // copy
-	mp_dmacopyjob.sourcemb_token	= 0x80;
-	mp_dmacopyjob.destmb_token		= 0x81;
-	mp_dmacopyjob.format			= 0x0b;
-	mp_dmacopyjob.endtokenlist		= 0x00;
-	mp_dmacopyjob.command_hi		= 0x00;
-	mp_dmacopyjob.sourcemb			= 0x80; // modplay only does DMA copies from attic MB
-	mp_dmacopyjob.destmb			= 0x00; // modplay only does DMA copies to fast MB
 
 	mp_dmacopy(mod_attic_addr + 1080, (uint32_t)mod_tmpbuf, 4);							// Check if 15 or 31 instrument mode (M.K.)
 
@@ -970,6 +964,29 @@ void modplay_init(uint32_t attic_address, uint32_t sample_address)
 		channel_sample				[i] = 0;
 	}
 
+	// finally, enable audio DMA again
+	AUDIO_DMA.AUDEN		= 0b10000000;
+}
+
+// ------------------------------------------------------------------------------------
+
+void modplay_init()
+{
+	uint16_t i;
+
+	// turn off saturation
+	AUDIO_DMA.DBGSAT	= 0b00000000;
+
+	// set up dma values that don't change
+	mp_dmacopyjob.command_lo		= 0x00; // copy
+	mp_dmacopyjob.sourcemb_token	= 0x80;
+	mp_dmacopyjob.destmb_token		= 0x81;
+	mp_dmacopyjob.format			= 0x0b;
+	mp_dmacopyjob.endtokenlist		= 0x00;
+	mp_dmacopyjob.command_hi		= 0x00;
+	mp_dmacopyjob.sourcemb			= 0x80; // modplay only does DMA copies from attic MB
+	mp_dmacopyjob.destmb			= 0x00; // modplay only does DMA copies to fast MB
+
 	// audioxbar_setcoefficient(i, 0xff);
 	for(i = 0; i < 256; i++)
 	{
@@ -984,8 +1001,9 @@ void modplay_init(uint32_t attic_address, uint32_t sample_address)
 		poke(0xd6f5, 0xff);
 	}
 
-	// finally, enable audio DMA again
-	AUDIO_DMA.AUDEN		= 0b10000000;
+	modplay_disable();
+
+	modplay_mute();
 }
 
 // ------------------------------------------------------------------------------------

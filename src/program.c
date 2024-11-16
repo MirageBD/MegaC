@@ -63,7 +63,18 @@ uint8_t		program_keydowndelay = 0;
 int16_t		program_dir_selectedrow = 0;
 uint8_t*	program_transbuf;
 
+uint16_t	program_jukebox_entry = 0;
+uint8_t		program_jukebox_playing = 0;
+
 uint8_t		xemu_fudge = 8;
+
+uint8_t program_entryisdir()
+{
+		uint8_t attrib = program_transbuf[0x56];
+		if((attrib & 0b00010000) == 0b00010000)
+			return 1;
+		return 0;
+}
 
 void program_processdirentry()
 {
@@ -92,7 +103,7 @@ void program_processdirentry()
 
 	dma_dmacopy(program_transbuf, ATTICDIRENTRIES + direntryoffset, STORED_DIR_ENTRY_SIZE);
 
-	poke(0xc000 + numdirentries, numdirentries);
+	poke(DIRENTPTRS + numdirentries, numdirentries);
 
 	direntryoffset += STORED_DIR_ENTRY_SIZE;
 
@@ -111,17 +122,17 @@ void program_sortdirentries()
 		swapped = 0;
 		for(uint16_t j = 0; j < n - i - 1; j++)
 		{
-			uint32_t addr1 = (ATTICDIRENTRIES + STORED_DIR_ENTRY_SIZE * peek(0xc000+j+0));
-			uint32_t addr2 = (ATTICDIRENTRIES + STORED_DIR_ENTRY_SIZE * peek(0xc000+j+1));
+			uint32_t addr1 = (ATTICDIRENTRIES + STORED_DIR_ENTRY_SIZE * peek(DIRENTPTRS+j+0));
+			uint32_t addr2 = (ATTICDIRENTRIES + STORED_DIR_ENTRY_SIZE * peek(DIRENTPTRS+j+1));
 
 			uint8_t val1 = (lpeek(addr1 + 0x56) & 0b00010000);
 			uint8_t val2 = (lpeek(addr2 + 0x56) & 0b00010000);
 
 			if (val1 < val2)
 			{
-				uint8_t foo = peek(0xc000 + j);
-				poke(0xc000+j, peek(0xc000+j+1));
-				poke(0xc000+j+1, foo);
+				uint8_t foo = peek(DIRENTPTRS + j);
+				poke(DIRENTPTRS + j, peek(DIRENTPTRS + j + 1));
+				poke(DIRENTPTRS + j + 1, foo);
 				swapped = 1;
 			}
 		}
@@ -137,8 +148,8 @@ void program_sortdirentries()
 		swapped = 0;
 		for(uint16_t j = 0; j < n - i - 1; j++)
 		{
-			uint32_t addr1 = (ATTICDIRENTRIES + STORED_DIR_ENTRY_SIZE * peek(0xc000+j+0));
-			uint32_t addr2 = (ATTICDIRENTRIES + STORED_DIR_ENTRY_SIZE * peek(0xc000+j+1));
+			uint32_t addr1 = (ATTICDIRENTRIES + STORED_DIR_ENTRY_SIZE * peek(DIRENTPTRS + j + 0));
+			uint32_t addr2 = (ATTICDIRENTRIES + STORED_DIR_ENTRY_SIZE * peek(DIRENTPTRS + j + 1));
 
 			uint8_t val1 = (lpeek(addr1 + 0x56) & 0b00010000);
 			uint8_t val2 = (lpeek(addr2 + 0x56) & 0b00010000);
@@ -156,9 +167,9 @@ void program_sortdirentries()
 					}
 					else if(val3 > val4) // bigger, so swap
 					{
-						uint8_t foo = peek(0xc000 + j);
-						poke(0xc000+j, peek(0xc000+j+1));
-						poke(0xc000+j+1, foo);
+						uint8_t foo = peek(DIRENTPTRS + j);
+						poke(DIRENTPTRS + j, peek(DIRENTPTRS + j + 1));
+						poke(DIRENTPTRS + j + 1, foo);
 						swapped = 1;
 						k = 64;
 					}
@@ -172,15 +183,6 @@ void program_sortdirentries()
 		if (swapped == 0)
 			break;
 	}
-
-/*
-	for(uint32_t i = 0; i < numdirentries; i++)
-	{
-		uint32_t addr1 = (ATTICDIRENTRIES + STORED_DIR_ENTRY_SIZE * peek(0xc000+i));
-		uint8_t val1 = lpeek(addr1);
-		poke(0xc000+i, val1);
-	}
-*/
 }
 
 
@@ -242,15 +244,16 @@ void program_init()
 	// TODO - set correct palette
 
 	VIC2.BORDERCOL = 0x0f;
-	VIC2.SCREENCOL = 0x00;
+	VIC2.SCREENCOL = 0x0f;
 
-	modplay_disable();
-
+	modplay_init();
 	fontsys_init();
 	fontsys_clearscreen();
 
 	program_settransbuf();
 	program_opendir();												// open and read root directory
+
+	VIC2.SCREENCOL = 0x00;
 }
 
 void program_drawdirectory()
@@ -277,10 +280,10 @@ void program_drawdirectory()
 		endrow = 12 + (numdirentries - program_dir_selectedrow);
 	}
 
-	direntryoffset = rowoffset; // * STORED_DIR_ENTRY_SIZE;
+	direntryoffset = rowoffset;
 	for(uint16_t row = startrow; row < endrow; row++)
 	{
-		uint32_t direntry = peek(0xc000+direntryoffset) * STORED_DIR_ENTRY_SIZE;
+		uint32_t direntry = peek(DIRENTPTRS + direntryoffset) * STORED_DIR_ENTRY_SIZE;
 		dma_dmacopy(ATTICDIRENTRIES + DIR_ENTRY_SIZE - 1 - 4 + direntry, (uint32_t)&fnts_tempbuf, 0x40 + 1 + 4 + 10);	// -4 for file length, -1 for attribute, +10 for filesize string
 
 		fnts_row = 2 * row;
@@ -289,7 +292,7 @@ void program_drawdirectory()
 		uint8_t attrib = peek(&fnts_tempbuf + 4);
 		uint8_t color = 0x0f;
 		if((attrib & 0b00010000) == 0b00010000)
-			color = 0x2f;
+			color = 0x1f;
 
 		poke(&fnts_curpal + 1, color);
 
@@ -298,7 +301,7 @@ void program_drawdirectory()
 		fontsys_asm_rendergotox();
 		fontsys_asm_renderfilesize();
 
-		direntryoffset ++; // = STORED_DIR_ENTRY_SIZE;
+		direntryoffset++;
 	}
 
 	fontsys_unmap();
@@ -346,28 +349,34 @@ void program_processkeyboard()
 	}
 	else if(keyboard_keyreleased(KEYBOARD_RETURN))
 	{
-		uint32_t direntry = peek(0xc000+program_dir_selectedrow);
+		uint32_t direntry = peek(DIRENTPTRS + program_dir_selectedrow);
 
 		// get current entry (without converted filename bit)
 		dma_dmacopy(ATTICDIRENTRIES + direntry * STORED_DIR_ENTRY_SIZE, program_transbuf, DIR_ENTRY_SIZE);	
 
-		uint8_t attrib = program_transbuf[0x56];
-	
-		if((attrib & 0b00010000) == 0b00010000)
+		if(program_entryisdir())
 		{
 			program_chdir();
 			program_opendir();
 		}
 		else
 		{
+			mp_loop = 1;
 			modplay_disable();
 			program_openfile();
-			modplay_init(ATTICADDRESS, SAMPLEADRESS);
+			modplay_initmod(ATTICADDRESS, SAMPLEADRESS);
 			modplay_enable();
 		}
 	}
+	else if(keyboard_keyreleased(KEYBOARD_F3))
+	{
+			mp_loop = 0;
+			program_jukebox_playing = 1;
+			program_jukebox_entry = 0;
+	}
 	else if(keyboard_keyreleased(KEYBOARD_ESC))
 	{
+		modplay_mute();
 		modplay_disable();
 	}
 	else if(keyboard_keyreleased(KEYBOARD_INSERTDEL))
@@ -394,6 +403,34 @@ void program_update()
 {
 	program_drawdirectory();
 	program_processkeyboard();
+
+	if(program_jukebox_playing)
+	{
+		if(mp_done)
+		{
+			modplay_mute();
+			modplay_disable();
+
+			uint32_t direntry = peek(DIRENTPTRS + (program_jukebox_entry % numdirentries));
+			dma_dmacopy(ATTICDIRENTRIES + direntry * STORED_DIR_ENTRY_SIZE, program_transbuf, DIR_ENTRY_SIZE);	
+
+			while(program_entryisdir())
+			{
+				program_jukebox_entry++;
+				direntry = peek(DIRENTPTRS + (program_jukebox_entry % numdirentries));
+				dma_dmacopy(ATTICDIRENTRIES + direntry * STORED_DIR_ENTRY_SIZE, program_transbuf, DIR_ENTRY_SIZE);	
+			}
+
+			program_dir_selectedrow = program_jukebox_entry;
+
+			program_openfile();
+			modplay_initmod(ATTICADDRESS, SAMPLEADRESS);
+
+			modplay_enable();
+
+			program_jukebox_entry++;
+		}
+	}
 }
 
 void program_mainloop()
