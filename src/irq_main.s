@@ -1,7 +1,4 @@
-			;.rtmodel version,"1"
-			;.rtmodel codeModel,"plain"
-			;.rtmodel core,"45gs02"
-			;.rtmodel target,"mega65"
+			.rtmodel cpu, "*"
 			
 			.extern modplay_play
 			.extern keyboard_update

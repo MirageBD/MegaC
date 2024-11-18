@@ -7,12 +7,13 @@
 
 // change sample_lengths[] so it already has the correct 16bit value for mega65
 
-#include <calypsi/intrinsics6502.h>
 #include <stdint.h>
 #include "macros.h"
 #include "registers.h"
 #include "dma.h"
 #include "modplay.h"
+
+// #pragma clang section text="code" rodata="cdata" data="data" bss="zdata"
 
 dma_copyjob mp_dmacopyjob;
 

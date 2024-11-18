@@ -1,7 +1,5 @@
-	.rtmodel version,"1"
-	.rtmodel codeModel,"plain"
-	.rtmodel core,"45gs02"
-	.rtmodel target,"mega65"
+	.rtmodel cpu, "*"
+	
 	.extern _Zp
 
 ; 0. fastload_request = 1 (fl_new_request)

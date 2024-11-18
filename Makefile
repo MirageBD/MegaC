@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 
-megabuild		= 1
+megabuild		= 0
 attachdebugger	= 0
 
 # -----------------------------------------------------------------------------
@@ -51,7 +51,7 @@ default: all
 VPATH = src
 
 # Common source files
-ASM_SRCS = decruncher.s iffl.s irqload.s irq_fastload.s irq_main.s sdc_asm.s fontsys_asm.s
+ASM_SRCS = binaries.s decruncher.s iffl.s irqload.s irq_fastload.s irq_main.s sdc_asm.s fontsys_asm.s startup.s
 C_SRCS = main.c dma.c modplay.c keyboard.c sdc.c fontsys.c dmajobs.c program.c
 
 OBJS = $(ASM_SRCS:%.s=$(EXE_DIR)/%.o) $(C_SRCS:%.c=$(EXE_DIR)/%.o)
@@ -79,7 +79,7 @@ $(EXE_DIR)/%.o: %.s
 	as6502 --target=mega65 --list-file=$(@:%.o=%.lst) -o $@ $<
 
 $(EXE_DIR)/%.o: %.c
-	cc6502 --target=mega65 --core 45gs02 -O2 --list-file=$(@:%.o=%.lst) -o $@ $<
+	cc6502 --target=mega65 --code-model=plain -O2 --list-file=$(@:%.o=%.lst) -o $@ $<
 
 $(EXE_DIR)/%-debug.o: %.s
 	as6502 --target=mega65 --debug --list-file=$(@:%.o=%.lst) -o $@ $<
@@ -87,11 +87,16 @@ $(EXE_DIR)/%-debug.o: %.s
 $(EXE_DIR)/%-debug.o: %.c
 	cc6502 --target=mega65 --debug --list-file=$(@:%.o=%.lst) -o $@ $<
 
+# there are multiple places that need to be changed for the start address:
+# ln6502 command line option --load-address 0x1001
+# megacrunch start address -f 100e
+# scm file   address (#x1001) section (programStart #x1001)
+
 $(EXE_DIR)/hello.prg: $(OBJS)
-	ln6502 --target=mega65 mega65-plain.scm -o $@ $^ --core 45gs02 --output-format=prg --rtattr printf=reduced --rtattr exit=simplified --list-file=$(EXE_DIR)/hello.lst
+	ln6502 --target=mega65 mega65-custom.scm -o $@ $^ --load-address 0x0a00 --raw-multiple-memories --cstartup=mystartup --rtattr printf=nofloat --rtattr exit=simplified --output-format=prg --list-file=$(EXE_DIR)/hello.lst
 
 $(EXE_DIR)/hello.prg.mc: $(EXE_DIR)/hello.prg
-	$(MEGACRUNCH) -f 200e $(EXE_DIR)/hello.prg
+	$(MEGACRUNCH) -f 1000 $(EXE_DIR)/hello.prg
 
 # -----------------------------------------------------------------------------
 
@@ -108,7 +113,7 @@ $(EXE_DIR)/hello.d81: $(EXE_DIR)/hello.prg.mc  $(BIN_DIR)/alldata.bin
 run: $(EXE_DIR)/hello.d81
 
 # test converting C file to asm
-#	cc6502 $(SRC_DIR)/skeleton.c --assembly-source=$(EXE_DIR)/skeleton.s
+#	cc6502 --target=mega65 $(SRC_DIR)/skeleton.c --assembly-source=$(EXE_DIR)/skeleton.s
 
 ifeq ($(megabuild), 1)
 	$(MEGAFTP) -c "put .\exe\hello.d81 hello.d81" -c "quit"
@@ -120,8 +125,8 @@ else
 ifeq ($(attachdebugger), 1)
 	cmd.exe /c "$(XMEGA65) -uartmon :4510 -autoload -8 $(EXE_DIR)/hello.d81" & m65dbg -l tcp 4510
 else
-	mega65_ftp -d "C:\Users\larsv\AppData\Roaming\xemu-lgb\mega65\mega65.img" -c "put .\bin\song.mod song.mod" -c "quit"
-	mega65_ftp -d "C:\Users\larsv\AppData\Roaming\xemu-lgb\mega65\mega65.img" -c "put .\bin\elmar.mod elmar.mod" -c "quit"
+#	mega65_ftp -d "C:\Users\larsv\AppData\Roaming\xemu-lgb\mega65\mega65.img" -c "put .\bin\song.mod song.mod" -c "quit"
+#	mega65_ftp -d "C:\Users\larsv\AppData\Roaming\xemu-lgb\mega65\mega65.img" -c "put .\bin\elmar.mod elmar.mod" -c "quit"
 	cmd.exe /c "$(XMEGA65) -autoload -8 $(EXE_DIR)/hello.d81"
 endif
 endif
