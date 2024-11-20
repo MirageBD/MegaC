@@ -370,14 +370,20 @@ void program_processkeyboard()
 	}
 	else if(keyboard_keyreleased(KEYBOARD_F3))
 	{
+			mp_done = 1;
 			mp_loop = 0;
+			modplay_mute();
+			modplay_disable();
 			program_jukebox_playing = 1;
-			program_jukebox_entry = 0;
+			program_jukebox_entry = program_dir_selectedrow; // start playing from currently selected
 	}
 	else if(keyboard_keyreleased(KEYBOARD_ESC))
 	{
+		mp_done = 1;
 		modplay_mute();
 		modplay_disable();
+		program_jukebox_playing = 0;
+		program_jukebox_entry = 0;
 	}
 	else if(keyboard_keyreleased(KEYBOARD_INSERTDEL))
 	{
@@ -428,7 +434,7 @@ void program_update()
 
 			modplay_enable();
 
-			program_jukebox_entry++;
+			program_jukebox_entry = (program_jukebox_entry + 13) % numdirentries;
 		}
 	}
 }
