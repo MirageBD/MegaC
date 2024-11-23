@@ -13,6 +13,9 @@
 #include "dmajobs.h"
 #include "program.h"
 
+extern void irq_main();
+extern void irq_vis();
+
 /*
 	FAT dir entry structure:
 
@@ -51,6 +54,22 @@
 	$57		asciiz		converted file name (0x40 bytes)
 	$97		10			10 bytes for filesize string
 */
+
+void start_main_irq()
+{
+	poke(&irqvec0+1, (uint8_t)(((uint16_t)&irq_main >> 0) & 0xff));
+	poke(&irqvec1+1, (uint8_t)(((uint16_t)&irq_main >> 8) & 0xff));
+	poke(&irqvec2+1, (uint8_t)(((uint16_t)&irq_main >> 0) & 0xff));
+	poke(&irqvec3+1, (uint8_t)(((uint16_t)&irq_main >> 8) & 0xff));
+}
+
+void start_vis_irq()
+{
+	poke(&irqvec0+1, (uint8_t)(((uint16_t)&irq_vis >> 0) & 0xff));
+	poke(&irqvec1+1, (uint8_t)(((uint16_t)&irq_vis >> 8) & 0xff));
+	poke(&irqvec2+1, (uint8_t)(((uint16_t)&irq_vis >> 0) & 0xff));
+	poke(&irqvec3+1, (uint8_t)(((uint16_t)&irq_vis >> 8) & 0xff));
+}
 
 #define DIR_ENTRY_SIZE			0x57
 #define STORED_DIR_ENTRY_SIZE	0xa1
@@ -307,7 +326,7 @@ void program_drawdirectory()
 	fontsys_unmap();
 }
 
-void program_processkeyboard()
+void program_main_processkeyboard()
 {
 	if(xemu_fudge > 0)
 	{
@@ -366,6 +385,7 @@ void program_processkeyboard()
 			modplay_disable();
 			program_openfile();
 			modplay_initmod(ATTICADDRESS, SAMPLEADRESS);
+			start_vis_irq();
 			modplay_enable();
 		}
 	}
@@ -385,6 +405,7 @@ void program_processkeyboard()
 		modplay_disable();
 		program_jukebox_playing = 0;
 		program_jukebox_entry = 0;
+		start_main_irq();
 	}
 	else if(keyboard_keyreleased(KEYBOARD_INSERTDEL))
 	{
@@ -406,10 +427,33 @@ void program_processkeyboard()
 	}
 }
 
+void program_vis_processkeyboard()
+{
+	if(keyboard_keyreleased(KEYBOARD_ESC))
+	{
+		mp_done = 1;
+		modplay_mute();
+		modplay_disable();
+		program_jukebox_playing = 0;
+		program_jukebox_entry = 0;
+		start_main_irq();
+	}
+	else
+	{
+		program_keydowndelay = 32;
+		program_keydowncount = 0;
+	}
+}
+
 void program_update()
 {
 	program_drawdirectory();
-	program_processkeyboard();
+	program_main_processkeyboard();
+}
+
+void program_update_vis()
+{
+	program_vis_processkeyboard();
 
 	if(program_jukebox_playing)
 	{
