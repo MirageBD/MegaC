@@ -22,6 +22,11 @@ samp3		.byte 0
 samp4		.byte 0
 sampcomb	.byte 0
 
+samp1rnd	.byte 0
+samp2rnd	.byte 0
+samp3rnd	.byte 0
+samp4rnd	.byte 0
+
 ; ------------------------------------------------------------------------------------
 
 			.public irq_vis
@@ -64,6 +69,78 @@ irq_vis2:
 			lda 0xd012
 waitr1$:	cmp 0xd012
 			beq waitr1$
+
+
+			jsr analyzechannels
+
+
+
+			lda channel_sample+0
+			jsr convertchannel
+			clc
+			adc samp1rnd
+			tay
+			jsr rendercolour
+			ldy #0x10
+			jsr waitlines
+			ldy #0x04
+			jsr waitlines
+
+			lda channel_sample+1
+			jsr convertchannel
+			clc
+			adc samp2rnd
+			tay
+			jsr rendercolour
+			ldy #0x10
+			jsr waitlines
+			ldy #0x04
+			jsr waitlines
+
+			lda channel_sample+2
+			jsr convertchannel
+			clc
+			adc samp3rnd
+			tay
+			jsr rendercolour
+			ldy #0x10
+			jsr waitlines
+			ldy #0x04
+			jsr waitlines
+
+			lda channel_sample+3
+			jsr convertchannel
+			clc
+			adc samp4rnd
+			tay
+			jsr rendercolour
+			ldy #0x10
+			jsr waitlines
+			ldy #0x04
+			jsr waitlines
+
+			lda #0x08
+			sta 0xd012
+			.public irqvec2
+irqvec2:
+			lda #.byte0 irq_vis
+			sta 0xfffe
+			.public irqvec3
+irqvec3:
+			lda #.byte1 irq_vis
+			sta 0xffff
+
+			plz
+			ply
+			plx
+			pla
+			plp
+			asl 0xd019
+			rti
+
+; ------------------------------------------------------------------------------------
+
+analyzechannels:
 
 			ldx #0
 			ldz #0x00
@@ -224,86 +301,61 @@ waitr4$:	cmp 0xd012
 loopsamplerendend$:
 
 			lda samp1max
-			ldx channel_sample+0
-			jsr rendercolour
-			jsr wait8lines
+			lsr a
+			sta samp1rnd
 
 			lda samp2max
-			ldx channel_sample+1
-			jsr rendercolour
-			jsr wait8lines
+			lsr a
+			sta samp2rnd
 
 			lda samp3max
-			ldx channel_sample+2
-			jsr rendercolour
-			jsr wait8lines
+			lsr a
+			sta samp3rnd
 
 			lda samp4max
-			ldx channel_sample+3
-			jsr rendercolour
-			jsr wait8lines
+			lsr a
+			sta samp4rnd
+
+			rts
+
+; ------------------------------------------------------------------------------------
+
+waitlines:
+			lda 0xd012
+wl$			cmp 0xd012
+			beq wl$
+			dey
+			bne waitlines
 
 			lda #0x00
 			sta 0xd10f
 			sta 0xd20f
 			sta 0xd30f
 
-			lda #0xff
-			sta 0xd012
-			.public irqvec2
-irqvec2:
-			lda #.byte0 irq_vis
-			sta 0xfffe
-			.public irqvec3
-irqvec3:
-			lda #.byte1 irq_vis
-			sta 0xffff
-
-			plz
-			ply
-			plx
-			pla
-			plp
-			asl 0xd019
-			rti
-
-; ------------------------------------------------------------------------------------
-
-wait8lines:
-			ldy #0x10
-			ldx #0x00
-a1$:		lda 0xd020
-			dex
-			bne a1$
-			dey
-			bne a1$
 			rts
 
 ; ------------------------------------------------------------------------------------
 
-rendercolour:
-			; put current volume in first MULT register
+convertchannel:
+			sec
+			sbc #1
+			and #0x03
 			asl a
 			asl a
-			sta 0xd770
+			asl a
+			asl a
+			clc
+			adc #0x80
+			rts
 
-			; and put red, green and blue in secondary MULT register. take output and colourize
-			lda spectrumpalred,x
-			sta 0xd774
-			lda 0xd779
-			jsr swapnybbles
+rendercolour:
+			lda 0xc000,y
 			sta 0xd10f
 
-			lda spectrumpalgreen,x
-			sta 0xd774
-			lda 0xd779
-			jsr swapnybbles
+			lda 0xc100,y
 			sta 0xd20f
 
-			lda spectrumpalblue,x
-			sta 0xd774
-			lda 0xd779
-			jsr swapnybbles
+			lda 0xc200,y
 			sta 0xd30f
 
 			rts
