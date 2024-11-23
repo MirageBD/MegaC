@@ -95,7 +95,7 @@ void start_vis_irq()
 	VIC4.CHRCOUNTMSB	= 40 >> 8;
 	VIC4.LINESTEP		= 40 * 2;
 
-	VIC4.TEXTXPOSLSB	= 50;
+	VIC4.TEXTXPOSLSB	= 80;
 
 	dma_runjob((__far char *)&dma_visualizer_clearcolorram1);
 	dma_runjob((__far char *)&dma_visualizer_clearcolorram2);

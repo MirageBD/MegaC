@@ -42,7 +42,7 @@ irq_vis:
 			jsr program_update_vis
 			jsr keyboard_update
 
-			lda #0x32 + 6*8 + 1
+			lda #0x32
 			sta 0xd012
 			lda #.byte0 irq_vis2
 			sta 0xfffe
@@ -70,54 +70,83 @@ irq_vis2:
 waitr1$:	cmp 0xd012
 			beq waitr1$
 
+			lda #0x80
+			sta 0xd021
 
-			jsr analyzechannels
+			;lda #0xff
+			;sta 0xd10f
 
+			; test drawing colours into grid
 
+			jsr map_colourram
 
+			lda #3
+			sta squareh
+
+			lda #3
+			asl a
+			sta squarex
+			lda #4
+			asl a
+			sta squarew
 			lda channel_sample+0
 			jsr convertchannel
 			clc
 			adc samp1rnd
-			tay
-			jsr rendercolour
-			ldy #0x10
-			jsr waitlines
-			ldy #0x04
-			jsr waitlines
+			sta squarec
+			ldy #4
+			jsr drawsquare
 
+			lda #6
+			asl a
+			sta squarex
+			lda #4
+			asl a
+			sta squarew
 			lda channel_sample+1
 			jsr convertchannel
 			clc
 			adc samp2rnd
-			tay
-			jsr rendercolour
-			ldy #0x10
-			jsr waitlines
-			ldy #0x04
-			jsr waitlines
+			sta squarec
+			ldy #9
+			jsr drawsquare
 
+			lda #9
+			asl a
+			sta squarex
+			lda #4
+			asl a
+			sta squarew
 			lda channel_sample+2
 			jsr convertchannel
 			clc
 			adc samp3rnd
-			tay
-			jsr rendercolour
-			ldy #0x10
-			jsr waitlines
-			ldy #0x04
-			jsr waitlines
+			sta squarec
+			ldy #14
+			jsr drawsquare
 
+			lda #12
+			asl a
+			sta squarex
+			lda #4
+			asl a
+			sta squarew
 			lda channel_sample+3
 			jsr convertchannel
 			clc
 			adc samp4rnd
-			tay
-			jsr rendercolour
-			ldy #0x10
-			jsr waitlines
-			ldy #0x04
-			jsr waitlines
+			sta squarec
+			ldy #19
+			jsr drawsquare
+
+			jsr unmap_all
+
+			; end test drawing colours into grid
+
+			;lda #0x00
+			;sta 0xd10f
+
+			jsr analyzechannels
 
 			lda #0x08
 			sta 0xd012
@@ -137,6 +166,57 @@ irqvec3:
 			plp
 			asl 0xd019
 			rti
+
+; ------------------------------------------------------------------------------------
+
+drawsquare:
+
+			lda times80tablelo,y
+			clc
+			adc #0x01
+			sta ds$+1
+			lda times80tablehi,y
+			clc
+			adc #0x80
+			sta ds$+2
+
+			clc
+			lda ds$+1
+			adc squarex
+			sta ds$+1
+			lda ds$+2
+			adc #0
+			sta ds$+2
+
+			ldy #0
+ds0$:		lda squarec
+			ldx #0
+ds$:		sta 0x8001,x
+			inx
+			inx
+			cpx squarew
+			bne ds$
+
+			clc
+			lda ds$+1
+			adc #80
+			sta ds$+1
+			lda ds$+2
+			adc #0
+			sta ds$+2
+
+			iny
+			cpy squareh
+			bne ds0$
+
+			rts
+
+squarex:	.byte 0
+squarey:	.byte 0
+squarew:	.byte 0
+squareh:	.byte 0
+
+squarec:	.byte 0
 
 ; ------------------------------------------------------------------------------------
 
@@ -301,21 +381,38 @@ waitr4$:	cmp 0xd012
 
 loopsamplerendend$:
 
+			clc
 			lda samp1
 			lsr a
-			sta samp1rnd
+			adc #1
+			cmp #0x10
+			bmi lsre1$
+			lda #0x0f
+lsre1$:		sta samp1rnd
 
 			lda samp2
 			lsr a
-			sta samp2rnd
+			adc #1
+			cmp #0x10
+			bmi lsre2$
+			lda #0x0f
+lsre2$:		sta samp2rnd
 
 			lda samp3
 			lsr a
-			sta samp3rnd
+			adc #1
+			cmp #0x10
+			bmi lsre3$
+			lda #0x0f
+lsre3$:		sta samp3rnd
 
 			lda samp4
 			lsr a
-			sta samp4rnd
+			adc #1
+			cmp #0x10
+			bmi lsre4$
+			lda #0x0f
+lsre4$:		sta samp4rnd
 
 			rts
 
@@ -363,6 +460,7 @@ rendercolour:
 
 ; ------------------------------------------------------------------------------------
 
+/*
 swapnybbles:
 
 			asl a						; swap nybbles
@@ -372,17 +470,92 @@ swapnybbles:
 			adc #0x80
 			rol a
 			rts
+*/
 
 ; ------------------------------------------------------------------------------------
 
-spectrumpalred:
-			.byte 0xff, 0x00, 0x40, 0xff, 0xff, 0x00, 0xff, 0xff, 0x00, 0xff, 0xff, 0x00, 0xff, 0xff, 0x00, 0xff
-			.byte 0xff, 0x00, 0xff, 0xff, 0x00, 0xff, 0xff, 0x00, 0xff, 0xff, 0x00, 0xff, 0xff, 0x00, 0xff, 0xff
+map_colourram
+			lda #0xff
+			ldx #0b00000000
+			ldy #0xff
+			ldz #0b00001111
+			map
 
-spectrumpalgreen:
-			.byte 0x80, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00
-			.byte 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff
+			lda #0x00
+			ldx #0b00000000
+			ldy #0x88
+			ldz #0x17
+			map
+			eom
 
-spectrumpalblue:
-			.byte 0x00, 0x80, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0x00
-			.byte 0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00
+			rts
+
+unmap_all
+			lda #0x00
+			tax
+			tay
+			taz
+			map
+			nop
+
+			rts
+
+; ------------------------------------------------------------------------------------
+
+			.public times80tablelo
+times80tablelo:
+
+			.byte ( 0*80) & 0xff
+			.byte ( 1*80) & 0xff
+			.byte ( 2*80) & 0xff
+			.byte ( 3*80) & 0xff
+			.byte ( 4*80) & 0xff
+			.byte ( 5*80) & 0xff
+			.byte ( 6*80) & 0xff
+			.byte ( 7*80) & 0xff
+			.byte ( 8*80) & 0xff
+			.byte ( 9*80) & 0xff
+			.byte (10*80) & 0xff
+			.byte (11*80) & 0xff
+			.byte (12*80) & 0xff
+			.byte (13*80) & 0xff
+			.byte (14*80) & 0xff
+			.byte (15*80) & 0xff
+			.byte (16*80) & 0xff
+			.byte (17*80) & 0xff
+			.byte (18*80) & 0xff
+			.byte (19*80) & 0xff
+			.byte (20*80) & 0xff
+			.byte (21*80) & 0xff
+			.byte (22*80) & 0xff
+			.byte (23*80) & 0xff
+			.byte (24*80) & 0xff
+
+			.public times80tablehi
+times80tablehi:
+
+			.byte (( 0*80) >> 8) & 0xff
+			.byte (( 1*80) >> 8) & 0xff
+			.byte (( 2*80) >> 8) & 0xff
+			.byte (( 3*80) >> 8) & 0xff
+			.byte (( 4*80) >> 8) & 0xff
+			.byte (( 5*80) >> 8) & 0xff
+			.byte (( 6*80) >> 8) & 0xff
+			.byte (( 7*80) >> 8) & 0xff
+			.byte (( 8*80) >> 8) & 0xff
+			.byte (( 9*80) >> 8) & 0xff
+			.byte ((10*80) >> 8) & 0xff
+			.byte ((11*80) >> 8) & 0xff
+			.byte ((12*80) >> 8) & 0xff
+			.byte ((13*80) >> 8) & 0xff
+			.byte ((14*80) >> 8) & 0xff
+			.byte ((15*80) >> 8) & 0xff
+			.byte ((16*80) >> 8) & 0xff
+			.byte ((17*80) >> 8) & 0xff
+			.byte ((18*80) >> 8) & 0xff
+			.byte ((19*80) >> 8) & 0xff
+			.byte ((20*80) >> 8) & 0xff
+			.byte ((21*80) >> 8) & 0xff
+			.byte ((22*80) >> 8) & 0xff
+			.byte ((23*80) >> 8) & 0xff
+			.byte ((24*80) >> 8) & 0xff
