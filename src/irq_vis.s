@@ -94,7 +94,7 @@ waitr1$:	cmp 0xd012
 			clc
 			adc samp1rnd
 			sta squarec
-			ldy #4
+			ldy #3
 			jsr drawsquare
 
 			lda #6
@@ -108,7 +108,7 @@ waitr1$:	cmp 0xd012
 			clc
 			adc samp2rnd
 			sta squarec
-			ldy #9
+			ldy #8
 			jsr drawsquare
 
 			lda #9
@@ -122,7 +122,7 @@ waitr1$:	cmp 0xd012
 			clc
 			adc samp3rnd
 			sta squarec
-			ldy #14
+			ldy #13
 			jsr drawsquare
 
 			lda #12
@@ -136,7 +136,7 @@ waitr1$:	cmp 0xd012
 			clc
 			adc samp4rnd
 			sta squarec
-			ldy #19
+			ldy #18
 			jsr drawsquare
 
 			jsr unmap_all
@@ -382,7 +382,7 @@ waitr4$:	cmp 0xd012
 loopsamplerendend$:
 
 			clc
-			lda samp1
+			lda samp1max
 			lsr a
 			adc #1
 			cmp #0x10
@@ -390,7 +390,7 @@ loopsamplerendend$:
 			lda #0x0f
 lsre1$:		sta samp1rnd
 
-			lda samp2
+			lda samp2max
 			lsr a
 			adc #1
 			cmp #0x10
@@ -398,7 +398,7 @@ lsre1$:		sta samp1rnd
 			lda #0x0f
 lsre2$:		sta samp2rnd
 
-			lda samp3
+			lda samp3max
 			lsr a
 			adc #1
 			cmp #0x10
@@ -406,7 +406,7 @@ lsre2$:		sta samp2rnd
 			lda #0x0f
 lsre3$:		sta samp3rnd
 
-			lda samp4
+			lda samp4max
 			lsr a
 			adc #1
 			cmp #0x10
