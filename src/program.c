@@ -362,6 +362,7 @@ void program_processkeyboard()
 		else
 		{
 			mp_loop = 1;
+			modplay_mute();
 			modplay_disable();
 			program_openfile();
 			modplay_initmod(ATTICADDRESS, SAMPLEADRESS);
