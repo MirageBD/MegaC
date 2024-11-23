@@ -61,6 +61,22 @@ void start_main_irq()
 	poke(&irqvec1+1, (uint8_t)(((uint16_t)&irq_main >> 8) & 0xff));
 	poke(&irqvec2+1, (uint8_t)(((uint16_t)&irq_main >> 0) & 0xff));
 	poke(&irqvec3+1, (uint8_t)(((uint16_t)&irq_main >> 8) & 0xff));
+
+	VIC3.H640			= 1;
+	VIC3.V400			= 1;
+	VIC4.DISPROWS		= 50;
+	VIC4.CHRYSCL		= 0;
+
+	VIC4.CHRCOUNTLSB	= RRBSCREENWIDTH;
+	VIC4.CHRCOUNTMSB	= RRBSCREENWIDTH >> 8;
+	VIC4.LINESTEP		= RRBSCREENWIDTH2;
+
+	VIC4.TEXTXPOSLSB	= 0x90;
+
+	dma_runjob((__far char *)&dma_clearcolorram1);
+	dma_runjob((__far char *)&dma_clearcolorram2);
+	dma_runjob((__far char *)&dma_clearscreen1);
+	dma_runjob((__far char *)&dma_clearscreen2);
 }
 
 void start_vis_irq()
@@ -69,6 +85,22 @@ void start_vis_irq()
 	poke(&irqvec1+1, (uint8_t)(((uint16_t)&irq_vis >> 8) & 0xff));
 	poke(&irqvec2+1, (uint8_t)(((uint16_t)&irq_vis >> 0) & 0xff));
 	poke(&irqvec3+1, (uint8_t)(((uint16_t)&irq_vis >> 8) & 0xff));
+
+	VIC3.H640			= 0;
+	VIC3.V400			= 0;
+	VIC4.DISPROWS		= 25;
+	VIC4.CHRYSCL		= 1;
+
+	VIC4.CHRCOUNTLSB	= 40;
+	VIC4.CHRCOUNTMSB	= 40 >> 8;
+	VIC4.LINESTEP		= 40 * 2;
+
+	VIC4.TEXTXPOSLSB	= 50;
+
+	dma_runjob((__far char *)&dma_visualizer_clearcolorram1);
+	dma_runjob((__far char *)&dma_visualizer_clearcolorram2);
+	dma_runjob((__far char *)&dma_visualizer_clearscreen1);
+	dma_runjob((__far char *)&dma_visualizer_clearscreen2);
 }
 
 #define DIR_ENTRY_SIZE			0x57
@@ -397,6 +429,7 @@ void program_main_processkeyboard()
 			modplay_disable();
 			program_jukebox_playing = 1;
 			program_jukebox_entry = program_dir_selectedrow; // start playing from currently selected
+			start_vis_irq();
 	}
 	else if(keyboard_keyreleased(KEYBOARD_ESC))
 	{

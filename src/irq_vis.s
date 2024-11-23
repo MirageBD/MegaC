@@ -38,7 +38,7 @@ irq_vis:
 			phz
 
 			jsr modplay_play
-			jsr fontsys_clearscreen
+			;jsr fontsys_clearscreen
 			jsr program_update_vis
 			jsr keyboard_update
 
@@ -155,7 +155,7 @@ analyzechannels:
 			sta 0xd776
 			sta 0xd777
 
-			; decrease sampmax somewhat
+			; decrease sampmax somewhat		
 			sec
 			lda samp1max
 			sbc #0x20
@@ -289,6 +289,7 @@ nl3$:
 			sta samp4max
 nl4$:
 
+
 			lda 0xd012
 waitr4$:	cmp 0xd012
 			beq waitr4$
@@ -300,19 +301,19 @@ waitr4$:	cmp 0xd012
 
 loopsamplerendend$:
 
-			lda samp1max
+			lda samp1
 			lsr a
 			sta samp1rnd
 
-			lda samp2max
+			lda samp2
 			lsr a
 			sta samp2rnd
 
-			lda samp3max
+			lda samp3
 			lsr a
 			sta samp3rnd
 
-			lda samp4max
+			lda samp4
 			lsr a
 			sta samp4rnd
 
