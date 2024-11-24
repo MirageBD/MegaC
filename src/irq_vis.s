@@ -90,9 +90,6 @@ waitr1$:	cmp 0xd012
 			jsr fadescreen
 dontfade$:
 
-			lda #3
-			sta squareh
-
 			lda channel_tempperiod+1 ; lda #3
 			lsr a
 			lda channel_tempperiod+0 ; lda #3
@@ -103,7 +100,7 @@ dontfade$:
 			lda vissine,x
 			asl a
 			sta squarex
-			lda visrand2,x
+			lda visrand1,x
 			asl a
 			sta squarew
 			lda channel_sample+0
@@ -113,7 +110,7 @@ dontfade$:
 			sta squarec
 			lda samp1rnd
 			sta squareclo
-			lda visrand1,x
+			lda visrand2,x
 			sta squareh
 			lda viscosine,x
 			tay
@@ -129,7 +126,7 @@ dontfade$:
 			lda vissine,x
 			asl a
 			sta squarex
-			lda visrand2,x
+			lda visrand1,x
 			asl a
 			sta squarew
 			lda channel_sample+1
@@ -139,7 +136,7 @@ dontfade$:
 			sta squarec
 			lda samp2rnd
 			sta squareclo
-			lda visrand1,x
+			lda visrand2,x
 			sta squareh
 			lda viscosine,x
 			tay
@@ -155,7 +152,7 @@ dontfade$:
 			lda vissine,x
 			asl a
 			sta squarex
-			lda visrand2,x
+			lda visrand1,x
 			asl a
 			sta squarew
 			lda channel_sample+2
@@ -165,7 +162,7 @@ dontfade$:
 			sta squarec
 			lda samp3rnd
 			sta squareclo
-			lda visrand1,x
+			lda visrand2,x
 			sta squareh
 			lda viscosine,x
 			tay
@@ -181,7 +178,7 @@ dontfade$:
 			lda vissine,x
 			asl a
 			sta squarex
-			lda visrand2,x
+			lda visrand1,x
 			asl a
 			sta squarew
 			lda channel_sample+3
@@ -191,7 +188,7 @@ dontfade$:
 			sta squarec
 			lda samp4rnd
 			sta squareclo
-			lda visrand1,x
+			lda visrand2,x
 			sta squareh
 			lda viscosine,x
 			tay
@@ -715,8 +712,8 @@ visrand1:
     .byte    6,   3,   3,   3,   6,   4,   7,   6,   5,   2,   5,   2,   6,   4,   5,   6
 
 visrand2:
-    .byte    6,   2,   7,   7,   2,   5,   4,   2,   6,   2,   5,   3,   4,   3,   6,   2
-    .byte    4,   5,   4,   4,   6,   4,   5,   6,   7,   2,   4,   7,   5,   2,   2,   6
+    .byte    5,   2,   4,   6,   2,   4,   4,   2,   5,   2,   5,   3,   4,   3,   6,   2
+    .byte    4,   5,   4,   4,   5,   4,   5,   6,   7,   2,   4,   7,   5,   2,   2,   6
     .byte    6,   6,   5,   5,   4,   6,   4,   7,   7,   5,   4,   5,   6,   3,   4,   3
     .byte    5,   6,   5,   4,   6,   4,   5,   7,   2,   7,   3,   6,   7,   6,   2,   4
     .byte    7,   2,   5,   2,   4,   3,   5,   3,   6,   4,   7,   2,   3,   2,   5,   3
@@ -729,5 +726,6 @@ visrand2:
     .byte    6,   7,   7,   2,   5,   6,   5,   5,   4,   4,   6,   4,   4,   5,   3,   5
     .byte    7,   5,   3,   3,   4,   4,   5,   3,   2,   5,   7,   5,   3,   6,   4,   4
     .byte    4,   5,   5,   7,   6,   7,   5,   6,   6,   2,   2,   2,   3,   4,   7,   6
-    .byte    5,   5,   7,   5,   5,   4,   5,   4,   3,   5,   2,   5,   5,   6,   2,   3
-    .byte    4,   2,   2,   5,   2,   5,   5,   7,   3,   5,   6,   2,   7,   6,   6,   7
+    .byte    5,   5,   7,   5,   5,   4,   5,   4,   3,   5,   2,   5,   5,   5,   2,   3
+    .byte    4,   2,   2,   5,   2,   5,   5,   7,   3,   5,   5,   2,   7,   4,   6,   7
+	
