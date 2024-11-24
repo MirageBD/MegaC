@@ -83,7 +83,7 @@ waitr1$:	cmp 0xd012
 
 			inc flipflop
 			lda flipflop
-			cmp #03
+			cmp #02
 			bmi dontfade$
 			lda #0
 			sta flipflop
@@ -97,6 +97,8 @@ dontfade$:
 			lsr a
 			lda channel_tempperiod+0 ; lda #3
 			ror a
+			clc
+			adc #0x00
 			tax
 			lda vissine,x
 			asl a
@@ -109,6 +111,8 @@ dontfade$:
 			clc
 			adc samp1rnd
 			sta squarec
+			lda samp1rnd
+			sta squareclo
 			lda visrand1,x
 			sta squareh
 			lda viscosine,x
@@ -119,6 +123,8 @@ dontfade$:
 			lsr a
 			lda channel_tempperiod+2 ; lda #3
 			ror a
+			clc
+			adc #0x40
 			tax
 			lda vissine,x
 			asl a
@@ -131,6 +137,8 @@ dontfade$:
 			clc
 			adc samp2rnd
 			sta squarec
+			lda samp2rnd
+			sta squareclo
 			lda visrand1,x
 			sta squareh
 			lda viscosine,x
@@ -141,6 +149,8 @@ dontfade$:
 			lsr a
 			lda channel_tempperiod+4 ; lda #3
 			ror a
+			clc
+			adc #0x80
 			tax
 			lda vissine,x
 			asl a
@@ -153,6 +163,8 @@ dontfade$:
 			clc
 			adc samp3rnd
 			sta squarec
+			lda samp3rnd
+			sta squareclo
 			lda visrand1,x
 			sta squareh
 			lda viscosine,x
@@ -163,6 +175,8 @@ dontfade$:
 			lsr a
 			lda channel_tempperiod+6 ; lda #3
 			ror a
+			clc
+			adc #0xc0
 			tax
 			lda vissine,x
 			asl a
@@ -175,6 +189,8 @@ dontfade$:
 			clc
 			adc samp4rnd
 			sta squarec
+			lda samp4rnd
+			sta squareclo
 			lda visrand1,x
 			sta squareh
 			lda viscosine,x
@@ -259,15 +275,21 @@ drawsquare:
 			lda ds2$+1
 			adc squarex
 			sta ds2$+1
+			sta ds3$+1
 			lda ds2$+2
 			adc #0
 			sta ds2$+2
+			sta ds3$+2
 
 			ldy #0
-ds1$:		lda squarec
-			ldx #0
-ds2$:		sta 0x8001,x
-			inx
+ds1$:		ldx #0
+ds2$:		lda 0x8001,x
+			and #0x0f
+			cmp squareclo
+			bpl ds4$
+			lda squarec
+ds3$:		sta 0x8001,x
+ds4$:		inx
 			inx
 			cpx squarew
 			bne ds2$
@@ -276,9 +298,11 @@ ds2$:		sta 0x8001,x
 			lda ds2$+1
 			adc #80
 			sta ds2$+1
+			sta ds3$+1
 			lda ds2$+2
 			adc #0
 			sta ds2$+2
+			sta ds3$+2
 
 			iny
 			cpy squareh
@@ -292,6 +316,7 @@ squarew:	.byte 0
 squareh:	.byte 0
 
 squarec:	.byte 0
+squareclo:	.byte 0
 
 ; ------------------------------------------------------------------------------------
 
