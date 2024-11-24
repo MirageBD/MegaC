@@ -99,7 +99,7 @@ dma_job dma_visualizer_clearcolorram1 =
 	.end_options			= 0x00,
 	.command				= 0b00000011, // fill, no chain
 	.count					= (80*25),
-	.source					= 0b0000000000001000, // 00001000 = NCM chars
+	.source					= 0b0000000000100000, // 00001000 = NCM chars
 	.source_bank			= 0x00,
 	.destination			= ((SAFE_COLOR_RAM + 0) & 0xffff),
 	.destination_bank		= (((SAFE_COLOR_RAM + 0) >> 16) & 0x0f),
@@ -120,7 +120,7 @@ dma_job dma_visualizer_clearcolorram2 =
 	.end_options			= 0x00,
 	.command				= 0b00000011, // fill, no chain
 	.count					= (80*25),
-	.source					= 0b0000000000001111, // 00000000 = $0f = pixels with value $0f take on the colour value of $0f as well
+	.source					= 0b0000000010000001, // $80 because that's where the spectrums are. 00000000 = $0f = pixels with value $0f take on the colour value of $0f as well
 	.source_bank			= 0x00,
 	.destination			= ((SAFE_COLOR_RAM + 1) & 0xffff),
 	.destination_bank		= (((SAFE_COLOR_RAM + 1) >> 16) & 0x0f),
@@ -141,7 +141,7 @@ dma_job dma_visualizer_clearscreen1 =
 	.end_options			= 0x00,
 	.command				= 0b00000011, // fill, no chain
 	.count					= (80*25),
-	.source					= (((FONTCHARMEM/64 + 95) >> 0)) & 0xff,
+	.source					= (((0xc800/64 + 0) >> 0)) & 0xff,
 	.source_bank			= 0x00,
 	.destination			= ((SCREEN + 0) & 0xffff),
 	.destination_bank		= (((SCREEN + 0) >> 16) & 0x0f),
@@ -162,7 +162,7 @@ dma_job dma_visualizer_clearscreen2 =
 	.end_options			= 0x00,
 	.command				= 0b00000011, // fill, no chain
 	.count					= (80*25),
-	.source					= (((FONTCHARMEM/64 + 95) >> 8)) & 0xff,
+	.source					= 3, // (((0xc800/64) >> 8)) & 0xff,
 	.source_bank			= 0x00,
 	.destination			= ((SCREEN + 1) & 0xffff),
 	.destination_bank		= (((SCREEN + 1) >> 16) & 0x0f),

@@ -8,6 +8,7 @@
 
 			.extern channel_tempvolume;
 			.extern channel_sample;
+			.extern channel_tempperiod;
 
 zp_cadr		.equlab	_Zp + 40
 
@@ -70,7 +71,7 @@ irq_vis2:
 waitr1$:	cmp 0xd012
 			beq waitr1$
 
-			lda #0x80
+			lda #0x06
 			sta 0xd021
 
 			;lda #0xff
@@ -80,10 +81,28 @@ waitr1$:	cmp 0xd012
 
 			jsr map_colourram
 
+			inc flipflop
+			lda flipflop
+			cmp #03
+			bmi dontfade$
+			lda #0
+			sta flipflop
+			jsr fadescreen
+dontfade$:
+
 			lda #3
 			sta squareh
 
-			lda #3
+			lda channel_tempperiod+1 ; lda #3
+			lsr a
+			lda channel_tempperiod+0 ; lda #3
+			ror a
+			eor #0xff
+			lsr a
+			lsr a
+			lsr a
+			clc
+			adc #0x04
 			asl a
 			sta squarex
 			lda #4
@@ -97,7 +116,16 @@ waitr1$:	cmp 0xd012
 			ldy #3
 			jsr drawsquare
 
-			lda #6
+			lda channel_tempperiod+3 ; lda #3
+			lsr a
+			lda channel_tempperiod+2 ; lda #3
+			ror a
+			eor #0xff
+			lsr a
+			lsr a
+			lsr a
+			clc
+			adc #0x04
 			asl a
 			sta squarex
 			lda #4
@@ -111,7 +139,16 @@ waitr1$:	cmp 0xd012
 			ldy #8
 			jsr drawsquare
 
-			lda #9
+			lda channel_tempperiod+5 ; lda #3
+			lsr a
+			lda channel_tempperiod+4 ; lda #3
+			ror a
+			eor #0xff
+			lsr a
+			lsr a
+			lsr a
+			clc
+			adc #0x04
 			asl a
 			sta squarex
 			lda #4
@@ -125,7 +162,16 @@ waitr1$:	cmp 0xd012
 			ldy #13
 			jsr drawsquare
 
-			lda #12
+			lda channel_tempperiod+7 ; lda #3
+			lsr a
+			lda channel_tempperiod+6 ; lda #3
+			ror a
+			eor #0xff
+			lsr a
+			lsr a
+			lsr a
+			clc
+			adc #0x04
 			asl a
 			sta squarex
 			lda #4
@@ -166,6 +212,39 @@ irqvec3:
 			plp
 			asl 0xd019
 			rti
+
+; ------------------------------------------------------------------------------------
+
+fadescreen:
+			lda #.byte0 0x8001
+			sta zp_cadr+0
+			lda #.byte1 0x8001
+			sta zp_cadr+1
+
+			ldx #7
+			ldy #0x00
+fs1$:		lda (zp_cadr),y
+			and #0xf0
+			sta tempme
+			lda (zp_cadr),y
+			and #0x0f
+			cmp #1
+			beq fs2$
+			sec
+			sbc #1
+fs2$:		ora tempme
+			sta (zp_cadr),y
+			iny
+			iny
+			bne fs1$
+			inc zp_cadr+1
+			dex
+			bne fs1$
+
+			rts
+
+tempme		.byte 0
+flipflop	.byte 0
 
 ; ------------------------------------------------------------------------------------
 
