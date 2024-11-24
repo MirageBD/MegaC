@@ -97,15 +97,11 @@ dontfade$:
 			lsr a
 			lda channel_tempperiod+0 ; lda #3
 			ror a
-			eor #0xff
-			lsr a
-			lsr a
-			lsr a
-			clc
-			adc #0x04
+			tax
+			lda vissine,x
 			asl a
 			sta squarex
-			lda #4
+			lda visrand2,x
 			asl a
 			sta squarew
 			lda channel_sample+0
@@ -113,22 +109,21 @@ dontfade$:
 			clc
 			adc samp1rnd
 			sta squarec
-			ldy #3
+			lda visrand1,x
+			sta squareh
+			lda viscosine,x
+			tay
 			jsr drawsquare
 
 			lda channel_tempperiod+3 ; lda #3
 			lsr a
 			lda channel_tempperiod+2 ; lda #3
 			ror a
-			eor #0xff
-			lsr a
-			lsr a
-			lsr a
-			clc
-			adc #0x04
+			tax
+			lda vissine,x
 			asl a
 			sta squarex
-			lda #4
+			lda visrand2,x
 			asl a
 			sta squarew
 			lda channel_sample+1
@@ -136,22 +131,21 @@ dontfade$:
 			clc
 			adc samp2rnd
 			sta squarec
-			ldy #8
+			lda visrand1,x
+			sta squareh
+			lda viscosine,x
+			tay
 			jsr drawsquare
 
 			lda channel_tempperiod+5 ; lda #3
 			lsr a
 			lda channel_tempperiod+4 ; lda #3
 			ror a
-			eor #0xff
-			lsr a
-			lsr a
-			lsr a
-			clc
-			adc #0x04
+			tax
+			lda vissine,x
 			asl a
 			sta squarex
-			lda #4
+			lda visrand2,x
 			asl a
 			sta squarew
 			lda channel_sample+2
@@ -159,22 +153,21 @@ dontfade$:
 			clc
 			adc samp3rnd
 			sta squarec
-			ldy #13
+			lda visrand1,x
+			sta squareh
+			lda viscosine,x
+			tay
 			jsr drawsquare
 
 			lda channel_tempperiod+7 ; lda #3
 			lsr a
 			lda channel_tempperiod+6 ; lda #3
 			ror a
-			eor #0xff
-			lsr a
-			lsr a
-			lsr a
-			clc
-			adc #0x04
+			tax
+			lda vissine,x
 			asl a
 			sta squarex
-			lda #4
+			lda visrand2,x
 			asl a
 			sta squarew
 			lda channel_sample+3
@@ -182,7 +175,10 @@ dontfade$:
 			clc
 			adc samp4rnd
 			sta squarec
-			ldy #18
+			lda visrand1,x
+			sta squareh
+			lda viscosine,x
+			tay
 			jsr drawsquare
 
 			jsr unmap_all
@@ -221,7 +217,7 @@ fadescreen:
 			lda #.byte1 0x8001
 			sta zp_cadr+1
 
-			ldx #7
+			ldx #8
 			ldy #0x00
 fs1$:		lda (zp_cadr),y
 			and #0xf0
@@ -253,40 +249,40 @@ drawsquare:
 			lda times80tablelo,y
 			clc
 			adc #0x01
-			sta ds$+1
+			sta ds2$+1
 			lda times80tablehi,y
 			clc
 			adc #0x80
-			sta ds$+2
+			sta ds2$+2
 
 			clc
-			lda ds$+1
+			lda ds2$+1
 			adc squarex
-			sta ds$+1
-			lda ds$+2
+			sta ds2$+1
+			lda ds2$+2
 			adc #0
-			sta ds$+2
+			sta ds2$+2
 
 			ldy #0
-ds0$:		lda squarec
+ds1$:		lda squarec
 			ldx #0
-ds$:		sta 0x8001,x
+ds2$:		sta 0x8001,x
 			inx
 			inx
 			cpx squarew
-			bne ds$
+			bne ds2$
 
 			clc
-			lda ds$+1
+			lda ds2$+1
 			adc #80
-			sta ds$+1
-			lda ds$+2
+			sta ds2$+1
+			lda ds2$+2
 			adc #0
-			sta ds$+2
+			sta ds2$+2
 
 			iny
 			cpy squareh
-			bne ds0$
+			bne ds1$
 
 			rts
 
@@ -638,3 +634,75 @@ times80tablehi:
 			.byte ((22*80) >> 8) & 0xff
 			.byte ((23*80) >> 8) & 0xff
 			.byte ((24*80) >> 8) & 0xff
+
+vissine:
+    .byte   17,  20,  18,  17,  16,  17,  19,  20,  18,  19,  20,  21,  21,  20,  21,  19
+    .byte   22,  23,  19,  20,  23,  20,  21,  21,  23,  23,  24,  23,  25,  23,  22,  21
+    .byte   22,  22,  23,  24,  22,  23,  23,  22,  22,  25,  24,  26,  26,  24,  26,  25
+    .byte   26,  23,  27,  23,  26,  27,  23,  26,  26,  23,  27,  25,  26,  26,  24,  25
+    .byte   25,  27,  24,  24,  25,  23,  24,  23,  25,  25,  27,  24,  23,  24,  26,  27
+    .byte   27,  26,  24,  23,  24,  25,  24,  25,  23,  23,  22,  26,  25,  22,  25,  23
+    .byte   23,  25,  23,  23,  24,  22,  23,  22,  23,  23,  20,  21,  21,  19,  20,  19
+    .byte   19,  19,  19,  19,  22,  18,  17,  20,  19,  19,  21,  18,  18,  20,  16,  17
+    .byte   16,  15,  15,  15,  18,  17,  17,  14,  14,  14,  17,  14,  15,  14,  15,  16
+    .byte   16,  15,  16,  14,  13,  12,  15,  15,  12,  11,  14,  12,  12,  13,  12,  14
+    .byte   11,  10,  12,  13,   9,   9,  10,   9,  13,   9,  13,  11,  11,   8,  12,   8
+    .byte    8,  10,   9,   8,  12,   9,   8,  11,  12,  11,   9,  12,   8,  11,  10,   8
+    .byte   11,   8,  10,  12,  11,   9,   9,   8,   9,   8,  12,  10,  11,   8,  12,   8
+    .byte   11,  11,   9,   8,  12,  10,   9,   9,   9,  12,  12,  12,  12,  13,  13,  11
+    .byte   13,  14,  14,  11,  13,  11,  11,  13,  12,  15,  13,  13,  12,  14,  12,  12
+    .byte   12,  16,  14,  14,  16,  14,  17,  17,  14,  15,  16,  16,  16,  16,  16,  19
+
+viscosine:
+    .byte   19,  20,  20,  18,  18,  20,  18,  16,  19,  20,  17,  20,  19,  18,  17,  16
+    .byte   17,  19,  20,  17,  19,  15,  18,  18,  17,  15,  15,  16,  17,  18,  14,  16
+    .byte   16,  18,  15,  16,  18,  16,  13,  14,  17,  16,  13,  12,  16,  16,  15,  14
+    .byte   15,  13,  12,  15,  14,  15,  10,  12,  10,  11,  13,  11,  13,  10,  10,   9
+    .byte   10,  10,  11,  12,  12,   8,  10,  10,   7,   9,  11,  10,   6,   8,   9,   7
+    .byte    7,   5,   5,   9,   6,   5,   7,   5,   6,   6,   4,   8,   7,   7,   5,   3
+    .byte    3,   7,   7,   4,   2,   2,   4,   2,   4,   4,   3,   3,   1,   1,   1,   1
+    .byte    5,   5,   2,   5,   3,   2,   1,   4,   2,   5,   4,   3,   2,   1,   2,   3
+    .byte    5,   2,   4,   3,   5,   5,   3,   4,   1,   2,   1,   3,   2,   3,   2,   5
+    .byte    3,   3,   3,   4,   1,   5,   3,   2,   6,   5,   6,   5,   5,   3,   5,   6
+    .byte    6,   5,   5,   4,   3,   4,   4,   8,   5,   7,   5,   6,   9,   8,   6,   8
+    .byte    6,   8,   9,   7,   8,  10,   7,   9,  10,   7,  10,   8,   8,   8,  10,  11
+    .byte   10,   9,  12,  12,  11,  12,  10,  10,  13,  13,  13,  12,  12,  12,  11,  14
+    .byte   14,  16,  14,  13,  16,  15,  14,  14,  13,  16,  15,  17,  18,  17,  17,  18
+    .byte   18,  17,  14,  19,  19,  16,  18,  18,  19,  18,  19,  19,  16,  19,  16,  16
+    .byte   20,  19,  20,  16,  20,  16,  18,  16,  19,  16,  19,  16,  17,  20,  18,  16
+
+visrand1:
+    .byte    6,   2,   7,   3,   5,   4,   5,   7,   5,   3,   4,   5,   7,   5,   3,   4
+    .byte    6,   4,   6,   5,   2,   6,   2,   7,   5,   3,   5,   7,   2,   5,   7,   5
+    .byte    4,   6,   3,   5,   3,   4,   5,   2,   2,   3,   3,   2,   2,   7,   2,   4
+    .byte    7,   3,   7,   3,   4,   3,   5,   6,   2,   4,   3,   6,   6,   5,   4,   2
+    .byte    7,   2,   4,   7,   7,   5,   5,   6,   6,   6,   7,   6,   4,   3,   7,   3
+    .byte    2,   5,   4,   2,   4,   5,   4,   3,   3,   3,   3,   2,   2,   6,   4,   2
+    .byte    7,   2,   3,   2,   7,   2,   4,   3,   7,   5,   4,   4,   5,   3,   4,   4
+    .byte    7,   4,   6,   6,   6,   6,   2,   2,   5,   5,   3,   5,   3,   6,   3,   5
+    .byte    4,   4,   6,   7,   7,   5,   3,   5,   3,   2,   2,   2,   3,   3,   7,   3
+    .byte    2,   4,   3,   5,   7,   5,   3,   7,   3,   3,   7,   2,   7,   3,   7,   2
+    .byte    4,   4,   4,   2,   5,   5,   2,   4,   5,   2,   3,   7,   5,   7,   6,   3
+    .byte    2,   2,   2,   5,   7,   2,   3,   4,   3,   7,   7,   7,   3,   3,   4,   5
+    .byte    4,   6,   5,   5,   4,   4,   7,   6,   7,   3,   5,   2,   3,   3,   2,   4
+    .byte    4,   6,   3,   2,   2,   6,   4,   5,   6,   4,   5,   7,   7,   6,   4,   7
+    .byte    6,   6,   4,   4,   3,   4,   4,   7,   6,   5,   6,   5,   2,   4,   6,   3
+    .byte    6,   3,   3,   3,   6,   4,   7,   6,   5,   2,   5,   2,   6,   4,   5,   6
+
+visrand2:
+    .byte    6,   2,   7,   7,   2,   5,   4,   2,   6,   2,   5,   3,   4,   3,   6,   2
+    .byte    4,   5,   4,   4,   6,   4,   5,   6,   7,   2,   4,   7,   5,   2,   2,   6
+    .byte    6,   6,   5,   5,   4,   6,   4,   7,   7,   5,   4,   5,   6,   3,   4,   3
+    .byte    5,   6,   5,   4,   6,   4,   5,   7,   2,   7,   3,   6,   7,   6,   2,   4
+    .byte    7,   2,   5,   2,   4,   3,   5,   3,   6,   4,   7,   2,   3,   2,   5,   3
+    .byte    3,   6,   6,   3,   7,   3,   7,   6,   6,   3,   4,   5,   4,   5,   4,   7
+    .byte    6,   4,   4,   7,   6,   4,   3,   6,   5,   7,   6,   6,   4,   7,   7,   4
+    .byte    3,   6,   5,   2,   5,   7,   7,   5,   3,   3,   4,   4,   7,   6,   5,   6
+    .byte    3,   7,   6,   2,   6,   4,   4,   2,   2,   6,   4,   3,   5,   4,   7,   7
+    .byte    7,   6,   7,   7,   2,   4,   5,   4,   3,   5,   4,   3,   2,   5,   3,   7
+    .byte    3,   6,   7,   6,   5,   2,   4,   5,   3,   5,   3,   6,   7,   6,   5,   6
+    .byte    6,   7,   7,   2,   5,   6,   5,   5,   4,   4,   6,   4,   4,   5,   3,   5
+    .byte    7,   5,   3,   3,   4,   4,   5,   3,   2,   5,   7,   5,   3,   6,   4,   4
+    .byte    4,   5,   5,   7,   6,   7,   5,   6,   6,   2,   2,   2,   3,   4,   7,   6
+    .byte    5,   5,   7,   5,   5,   4,   5,   4,   3,   5,   2,   5,   5,   6,   2,   3
+    .byte    4,   2,   2,   5,   2,   5,   5,   7,   3,   5,   6,   2,   7,   6,   6,   7
