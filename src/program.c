@@ -70,7 +70,6 @@ void start_main_irq()
 
 	VIC4.ALPHEN			= 0;
 
-	// THIS IS NOT THE PROBLEM OF THE RANDOM VERTICAL OFFSET
 	fontsys_map();
 	dma_runjob((__far char *)&dma_clearcolorram1);
 	dma_runjob((__far char *)&dma_clearcolorram2);
@@ -103,7 +102,6 @@ void start_vis_irq()
 
 	VIC4.ALPHEN			= 1;
 
-	// THIS IS NOT THE PROBLEM OF THE RANDOM VERTICAL OFFSET
 	fontsys_map();
 	dma_runjob((__far char *)&dma_visualizer_clearcolorram1);
 	dma_runjob((__far char *)&dma_visualizer_clearcolorram2);
@@ -256,7 +254,7 @@ void program_loaddata()
 	fl_init();
 	fl_waiting();
 	
-	floppy_iffl_fast_load_init("DATA");
+	floppy_iffl_fast_load_init("YMP65DT");
 	floppy_iffl_fast_load(); 										// chars
 	floppy_iffl_fast_load();										// palette
 

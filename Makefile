@@ -100,17 +100,17 @@ $(EXE_DIR)/hello.prg.mc: $(EXE_DIR)/hello.prg
 
 # -----------------------------------------------------------------------------
 
-$(EXE_DIR)/hello.d81: $(EXE_DIR)/hello.prg.mc  $(BIN_DIR)/alldata.bin
+$(EXE_DIR)/yamp65.d81: $(EXE_DIR)/hello.prg.mc  $(BIN_DIR)/alldata.bin
 	$(RM) $@
-	$(CC1541) -n "hello" -i " 2024" -d 19 -v\
+	$(CC1541) -n "yamp65" -i " 2024" -d 19 -v\
 	 \
-	 -f "hello" -w $(EXE_DIR)/hello.prg.mc \
-	 -f "data" -w $(BIN_DIR)/alldata.bin \
+	 -f "yamp65" -w $(EXE_DIR)/hello.prg.mc \
+	 -f "ymp65dt" -w $(BIN_DIR)/alldata.bin \
 	$@
 
 # -----------------------------------------------------------------------------
 
-run: $(EXE_DIR)/hello.d81
+run: $(EXE_DIR)/yamp65.d81
 
 # test converting C file to asm
 #	cc6502 --target=mega65 $(SRC_DIR)/skeleton.c --assembly-source=$(EXE_DIR)/skeleton.s
