@@ -57,11 +57,6 @@ extern void irq_vis();
 
 void start_main_irq()
 {
-	poke(&irqvec0+1, (uint8_t)(((uint16_t)&irq_main >> 0) & 0xff));
-	poke(&irqvec1+1, (uint8_t)(((uint16_t)&irq_main >> 8) & 0xff));
-	poke(&irqvec2+1, (uint8_t)(((uint16_t)&irq_main >> 0) & 0xff));
-	poke(&irqvec3+1, (uint8_t)(((uint16_t)&irq_main >> 8) & 0xff));
-
 	VIC3.H640			= 1;
 	VIC3.V400			= 1;
 	VIC4.DISPROWS		= 50;
@@ -73,38 +68,53 @@ void start_main_irq()
 
 	VIC4.TEXTXPOSLSB	= 0x90;
 
-	VIC4.ALPHEN			= 1;
+	VIC4.ALPHEN			= 0;
 
+	// THIS IS NOT THE PROBLEM OF THE RANDOM VERTICAL OFFSET
+	fontsys_map();
 	dma_runjob((__far char *)&dma_clearcolorram1);
 	dma_runjob((__far char *)&dma_clearcolorram2);
+	fontsys_unmap();
 	dma_runjob((__far char *)&dma_clearscreen1);
 	dma_runjob((__far char *)&dma_clearscreen2);
+
+	poke(&irqvec0+1, (uint8_t)(((uint16_t)&irq_main >> 0) & 0xff));
+	poke(&irqvec1+1, (uint8_t)(((uint16_t)&irq_main >> 8) & 0xff));
+	poke(&irqvec2+1, (uint8_t)(((uint16_t)&irq_main >> 0) & 0xff));
+	poke(&irqvec3+1, (uint8_t)(((uint16_t)&irq_main >> 8) & 0xff));
 }
 
 void start_vis_irq()
 {
-	poke(&irqvec0+1, (uint8_t)(((uint16_t)&irq_vis >> 0) & 0xff));
-	poke(&irqvec1+1, (uint8_t)(((uint16_t)&irq_vis >> 8) & 0xff));
-	poke(&irqvec2+1, (uint8_t)(((uint16_t)&irq_vis >> 0) & 0xff));
-	poke(&irqvec3+1, (uint8_t)(((uint16_t)&irq_vis >> 8) & 0xff));
-
 	VIC3.H640			= 0;
 	VIC3.V400			= 0;
 	VIC4.DISPROWS		= 25;
 	VIC4.CHRYSCL		= 1;
 
-	VIC4.CHRCOUNTLSB	= 40;
-	VIC4.CHRCOUNTMSB	= 40 >> 8;
-	VIC4.LINESTEP		= 40 * 2;
+	//VIC4.CHRCOUNTLSB	= 40;
+	//VIC4.CHRCOUNTMSB	= 0; // 40 >> 8;
+	//VIC4.LINESTEP		= 40 * 2;
+
+	VIC4.CHRCOUNTLSB	= RRBSCREENWIDTH;
+	VIC4.CHRCOUNTMSB	= RRBSCREENWIDTH >> 8;
+	VIC4.LINESTEP		= RRBSCREENWIDTH2;
 
 	VIC4.TEXTXPOSLSB	= 80;
 
 	VIC4.ALPHEN			= 1;
 
+	// THIS IS NOT THE PROBLEM OF THE RANDOM VERTICAL OFFSET
+	fontsys_map();
 	dma_runjob((__far char *)&dma_visualizer_clearcolorram1);
 	dma_runjob((__far char *)&dma_visualizer_clearcolorram2);
+	fontsys_unmap();
 	dma_runjob((__far char *)&dma_visualizer_clearscreen1);
 	dma_runjob((__far char *)&dma_visualizer_clearscreen2);
+
+	poke(&irqvec0+1, (uint8_t)(((uint16_t)&irq_vis >> 0) & 0xff));
+	poke(&irqvec1+1, (uint8_t)(((uint16_t)&irq_vis >> 8) & 0xff));
+	poke(&irqvec2+1, (uint8_t)(((uint16_t)&irq_vis >> 0) & 0xff));
+	poke(&irqvec3+1, (uint8_t)(((uint16_t)&irq_vis >> 8) & 0xff));
 }
 
 #define DIR_ENTRY_SIZE			0x57
@@ -544,6 +554,12 @@ void program_mainloop()
 	{
 		__asm
 		(
+			" lda 0xd020\n"
+			" sta 0xd020\n"
+			" lda 0xd020\n"
+			" sta 0xd020\n"
+			" lda 0xd020\n"
+			" sta 0xd020\n"
 			" lda 0xd020\n"
 			" sta 0xd020\n"
 		);

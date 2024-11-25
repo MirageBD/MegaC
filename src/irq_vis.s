@@ -39,11 +39,10 @@ irq_vis:
 			phz
 
 			jsr modplay_play
-			;jsr fontsys_clearscreen
 			jsr program_update_vis
 			jsr keyboard_update
 
-			lda #0x32
+			lda #0xff
 			sta 0xd012
 			lda #.byte0 irq_vis2
 			sta 0xfffe
@@ -71,7 +70,7 @@ irq_vis2:
 waitr1$:	cmp 0xd012
 			beq waitr1$
 
-			lda #0x06
+			lda #0x03
 			sta 0xd021
 
 			;lda #0xff
@@ -203,7 +202,7 @@ dontfade$:
 
 			jsr analyzechannels
 
-			lda #0x08
+			lda #0x80
 			sta 0xd012
 			.public irqvec2
 irqvec2:
@@ -230,7 +229,7 @@ fadescreen:
 			lda #.byte1 0x8001
 			sta zp_cadr+1
 
-			ldx #8
+			ldx #25
 			ldy #0x00
 fs1$:		lda (zp_cadr),y
 			and #0xf0
@@ -245,8 +244,17 @@ fs2$:		ora tempme
 			sta (zp_cadr),y
 			iny
 			iny
+			cpy #80
 			bne fs1$
-			inc zp_cadr+1
+
+			clc
+			lda zp_cadr+0
+			adc #160
+			sta zp_cadr+0
+			lda zp_cadr+1
+			adc #0
+			sta zp_cadr+1
+			
 			dex
 			bne fs1$
 
@@ -294,7 +302,7 @@ ds4$:		inx
 
 			clc
 			lda ds2$+1
-			adc #80
+			adc #160
 			sta ds2$+1
 			sta ds3$+1
 			lda ds2$+2
@@ -314,7 +322,7 @@ ds4$:		inx
 
 			lda squareclo
 			lsr a
-			;lsr a
+			lsr a
 			sta squareclo
 
 			lda squarec
@@ -366,7 +374,7 @@ ds8$:		inx
 
 			clc
 			lda ds6$+1
-			adc #80
+			adc #160
 			sta ds6$+1
 			sta ds7$+1
 			lda ds6$+2
@@ -675,60 +683,60 @@ unmap_all
 			.public times80tablelo
 times80tablelo:
 
-			.byte ( 0*80) & 0xff
-			.byte ( 1*80) & 0xff
-			.byte ( 2*80) & 0xff
-			.byte ( 3*80) & 0xff
-			.byte ( 4*80) & 0xff
-			.byte ( 5*80) & 0xff
-			.byte ( 6*80) & 0xff
-			.byte ( 7*80) & 0xff
-			.byte ( 8*80) & 0xff
-			.byte ( 9*80) & 0xff
-			.byte (10*80) & 0xff
-			.byte (11*80) & 0xff
-			.byte (12*80) & 0xff
-			.byte (13*80) & 0xff
-			.byte (14*80) & 0xff
-			.byte (15*80) & 0xff
-			.byte (16*80) & 0xff
-			.byte (17*80) & 0xff
-			.byte (18*80) & 0xff
-			.byte (19*80) & 0xff
-			.byte (20*80) & 0xff
-			.byte (21*80) & 0xff
-			.byte (22*80) & 0xff
-			.byte (23*80) & 0xff
-			.byte (24*80) & 0xff
+			.byte ( 0*160) & 0xff
+			.byte ( 1*160) & 0xff
+			.byte ( 2*160) & 0xff
+			.byte ( 3*160) & 0xff
+			.byte ( 4*160) & 0xff
+			.byte ( 5*160) & 0xff
+			.byte ( 6*160) & 0xff
+			.byte ( 7*160) & 0xff
+			.byte ( 8*160) & 0xff
+			.byte ( 9*160) & 0xff
+			.byte (10*160) & 0xff
+			.byte (11*160) & 0xff
+			.byte (12*160) & 0xff
+			.byte (13*160) & 0xff
+			.byte (14*160) & 0xff
+			.byte (15*160) & 0xff
+			.byte (16*160) & 0xff
+			.byte (17*160) & 0xff
+			.byte (18*160) & 0xff
+			.byte (19*160) & 0xff
+			.byte (20*160) & 0xff
+			.byte (21*160) & 0xff
+			.byte (22*160) & 0xff
+			.byte (23*160) & 0xff
+			.byte (24*160) & 0xff
 
 			.public times80tablehi
 times80tablehi:
 
-			.byte (( 0*80) >> 8) & 0xff
-			.byte (( 1*80) >> 8) & 0xff
-			.byte (( 2*80) >> 8) & 0xff
-			.byte (( 3*80) >> 8) & 0xff
-			.byte (( 4*80) >> 8) & 0xff
-			.byte (( 5*80) >> 8) & 0xff
-			.byte (( 6*80) >> 8) & 0xff
-			.byte (( 7*80) >> 8) & 0xff
-			.byte (( 8*80) >> 8) & 0xff
-			.byte (( 9*80) >> 8) & 0xff
-			.byte ((10*80) >> 8) & 0xff
-			.byte ((11*80) >> 8) & 0xff
-			.byte ((12*80) >> 8) & 0xff
-			.byte ((13*80) >> 8) & 0xff
-			.byte ((14*80) >> 8) & 0xff
-			.byte ((15*80) >> 8) & 0xff
-			.byte ((16*80) >> 8) & 0xff
-			.byte ((17*80) >> 8) & 0xff
-			.byte ((18*80) >> 8) & 0xff
-			.byte ((19*80) >> 8) & 0xff
-			.byte ((20*80) >> 8) & 0xff
-			.byte ((21*80) >> 8) & 0xff
-			.byte ((22*80) >> 8) & 0xff
-			.byte ((23*80) >> 8) & 0xff
-			.byte ((24*80) >> 8) & 0xff
+			.byte (( 0*160) >> 8) & 0xff
+			.byte (( 1*160) >> 8) & 0xff
+			.byte (( 2*160) >> 8) & 0xff
+			.byte (( 3*160) >> 8) & 0xff
+			.byte (( 4*160) >> 8) & 0xff
+			.byte (( 5*160) >> 8) & 0xff
+			.byte (( 6*160) >> 8) & 0xff
+			.byte (( 7*160) >> 8) & 0xff
+			.byte (( 8*160) >> 8) & 0xff
+			.byte (( 9*160) >> 8) & 0xff
+			.byte ((10*160) >> 8) & 0xff
+			.byte ((11*160) >> 8) & 0xff
+			.byte ((12*160) >> 8) & 0xff
+			.byte ((13*160) >> 8) & 0xff
+			.byte ((14*160) >> 8) & 0xff
+			.byte ((15*160) >> 8) & 0xff
+			.byte ((16*160) >> 8) & 0xff
+			.byte ((17*160) >> 8) & 0xff
+			.byte ((18*160) >> 8) & 0xff
+			.byte ((19*160) >> 8) & 0xff
+			.byte ((20*160) >> 8) & 0xff
+			.byte ((21*160) >> 8) & 0xff
+			.byte ((22*160) >> 8) & 0xff
+			.byte ((23*160) >> 8) & 0xff
+			.byte ((24*160) >> 8) & 0xff
 
 vissine:
     .byte   17,  20,  18,  17,  16,  17,  19,  20,  18,  19,  20,  21,  21,  20,  21,  19
@@ -785,9 +793,9 @@ visrand1:
     .byte    6,   3,   3,   3,   6,   4,   7,   6,   5,   2,   5,   2,   6,   4,   5,   6
 
 visrand2:
-    .byte    4,   2,   3,   5,   2,   3,   4,   2,   4,   2,   5,   3,   4,   3,   6,   2
-    .byte    4,   4,   3,   4,   4,   4,   5,   5,   6,   2,   4,   7,   5,   2,   2,   6
-    .byte    6,   5,   5,   5,   4,   6,   4,   7,   6,   5,   4,   5,   6,   3,   4,   3
+    .byte    5,   2,   4,   6,   2,   4,   4,   2,   5,   2,   5,   3,   4,   3,   6,   2
+    .byte    4,   5,   4,   4,   5,   4,   5,   6,   7,   2,   4,   7,   5,   2,   2,   6
+    .byte    6,   6,   5,   5,   4,   6,   4,   7,   7,   5,   4,   5,   6,   3,   4,   3
     .byte    5,   6,   5,   4,   6,   4,   5,   7,   2,   7,   3,   6,   7,   6,   2,   4
     .byte    7,   2,   5,   2,   4,   3,   5,   3,   6,   4,   7,   2,   3,   2,   5,   3
     .byte    3,   6,   6,   3,   7,   3,   7,   6,   6,   3,   4,   5,   4,   5,   4,   7
@@ -798,6 +806,6 @@ visrand2:
     .byte    3,   6,   7,   6,   5,   2,   4,   5,   3,   5,   3,   6,   7,   6,   5,   6
     .byte    6,   7,   7,   2,   5,   6,   5,   5,   4,   4,   6,   4,   4,   5,   3,   5
     .byte    7,   5,   3,   3,   4,   4,   5,   3,   2,   5,   7,   5,   3,   6,   4,   4
-    .byte    4,   5,   5,   7,   6,   7,   5,   6,   6,   2,   2,   2,   3,   4,   6,   5
-    .byte    5,   5,   7,   4,   4,   4,   5,   4,   3,   5,   2,   4,   5,   4,   2,   3
-    .byte    3,   2,   2,   5,   2,   5,   5,   7,   3,   5,   4,   2,   6,   3,   5,   7
+    .byte    4,   5,   5,   7,   6,   7,   5,   6,   6,   2,   2,   2,   3,   4,   7,   6
+    .byte    5,   5,   7,   5,   5,   4,   5,   4,   3,   5,   2,   5,   5,   5,   2,   3
+    .byte    4,   2,   2,   5,   2,   5,   5,   7,   3,   5,   5,   2,   7,   4,   6,   7
