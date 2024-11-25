@@ -113,7 +113,7 @@ dontfade$:
 			lda visrand2,x
 			sta squareh
 			lda viscosine,x
-			tay
+			sta squarey
 			jsr drawsquare
 
 			lda channel_tempperiod+3 ; lda #3
@@ -139,7 +139,7 @@ dontfade$:
 			lda visrand2,x
 			sta squareh
 			lda viscosine,x
-			tay
+			sta squarey
 			jsr drawsquare
 
 			lda channel_tempperiod+5 ; lda #3
@@ -165,7 +165,7 @@ dontfade$:
 			lda visrand2,x
 			sta squareh
 			lda viscosine,x
-			tay
+			sta squarey
 			jsr drawsquare
 
 			lda channel_tempperiod+7 ; lda #3
@@ -191,7 +191,7 @@ dontfade$:
 			lda visrand2,x
 			sta squareh
 			lda viscosine,x
-			tay
+			sta squarey
 			jsr drawsquare
 
 			jsr unmap_all
@@ -259,6 +259,7 @@ flipflop	.byte 0
 
 drawsquare:
 
+			ldy squarey
 			lda times80tablelo,y
 			clc
 			adc #0x01
@@ -304,6 +305,78 @@ ds4$:		inx
 			iny
 			cpy squareh
 			bne ds1$
+
+			; draw glowing outline
+
+			dec squarex ; decx2 because each char is 2 bytes
+			dec squarex
+			dec squarey
+
+			lda squareclo
+			lsr a
+			;lsr a
+			sta squareclo
+
+			lda squarec
+			and #0xf0
+			ora squareclo
+			sta squarec
+
+			ldy squarey
+			lda times80tablelo,y
+			clc
+			adc #0x01
+			sta ds6$+1
+			lda times80tablehi,y
+			clc
+			adc #0x80
+			sta ds6$+2
+
+			clc
+			lda squarew
+			adc #0x04
+			sta squarew
+			clc
+			lda squareh
+			adc #0x02
+			sta squareh
+
+			clc
+			lda ds6$+1
+			adc squarex
+			sta ds6$+1
+			sta ds7$+1
+			lda ds6$+2
+			adc #0
+			sta ds6$+2
+			sta ds7$+2
+
+			ldy #0
+ds5$:		ldx #0
+ds6$:		lda 0x8001,x
+			and #0x0f
+			cmp squareclo
+			bpl ds8$
+			lda squarec
+ds7$:		sta 0x8001,x
+ds8$:		inx
+			inx
+			cpx squarew
+			bne ds6$
+
+			clc
+			lda ds6$+1
+			adc #80
+			sta ds6$+1
+			sta ds7$+1
+			lda ds6$+2
+			adc #0
+			sta ds6$+2
+			sta ds7$+2
+
+			iny
+			cpy squareh
+			bne ds5$
 
 			rts
 
@@ -712,9 +785,9 @@ visrand1:
     .byte    6,   3,   3,   3,   6,   4,   7,   6,   5,   2,   5,   2,   6,   4,   5,   6
 
 visrand2:
-    .byte    5,   2,   4,   6,   2,   4,   4,   2,   5,   2,   5,   3,   4,   3,   6,   2
-    .byte    4,   5,   4,   4,   5,   4,   5,   6,   7,   2,   4,   7,   5,   2,   2,   6
-    .byte    6,   6,   5,   5,   4,   6,   4,   7,   7,   5,   4,   5,   6,   3,   4,   3
+    .byte    4,   2,   3,   5,   2,   3,   4,   2,   4,   2,   5,   3,   4,   3,   6,   2
+    .byte    4,   4,   3,   4,   4,   4,   5,   5,   6,   2,   4,   7,   5,   2,   2,   6
+    .byte    6,   5,   5,   5,   4,   6,   4,   7,   6,   5,   4,   5,   6,   3,   4,   3
     .byte    5,   6,   5,   4,   6,   4,   5,   7,   2,   7,   3,   6,   7,   6,   2,   4
     .byte    7,   2,   5,   2,   4,   3,   5,   3,   6,   4,   7,   2,   3,   2,   5,   3
     .byte    3,   6,   6,   3,   7,   3,   7,   6,   6,   3,   4,   5,   4,   5,   4,   7
@@ -725,7 +798,6 @@ visrand2:
     .byte    3,   6,   7,   6,   5,   2,   4,   5,   3,   5,   3,   6,   7,   6,   5,   6
     .byte    6,   7,   7,   2,   5,   6,   5,   5,   4,   4,   6,   4,   4,   5,   3,   5
     .byte    7,   5,   3,   3,   4,   4,   5,   3,   2,   5,   7,   5,   3,   6,   4,   4
-    .byte    4,   5,   5,   7,   6,   7,   5,   6,   6,   2,   2,   2,   3,   4,   7,   6
-    .byte    5,   5,   7,   5,   5,   4,   5,   4,   3,   5,   2,   5,   5,   5,   2,   3
-    .byte    4,   2,   2,   5,   2,   5,   5,   7,   3,   5,   5,   2,   7,   4,   6,   7
-	
+    .byte    4,   5,   5,   7,   6,   7,   5,   6,   6,   2,   2,   2,   3,   4,   6,   5
+    .byte    5,   5,   7,   4,   4,   4,   5,   4,   3,   5,   2,   4,   5,   4,   2,   3
+    .byte    3,   2,   2,   5,   2,   5,   5,   7,   3,   5,   4,   2,   6,   3,   5,   7
