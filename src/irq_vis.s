@@ -193,49 +193,6 @@ dontfade$:
 			sta squarey
 			jsr drawsquare
 
-
-			; test gotox
-
-
-
-			lda #0b00010000		; gotox
-			sta 0x8370+0
-			lda #0x00
-			sta 0x8370+1
-
-			inc amok+1
-
-amok:
-			lda #0x80			; gotox 128
-			sta 0xa370+0
-			lda #0x00
-			sta 0xa370+1
-
-			lda amok+1			; some character
-			and #0x07
-			ora #0x20
-			sta 0xa370+2
-			lda #0x03
-			sta 0xa370+3
-
-			;lda #0x88
-			;sta 0x8370+2
-amok2:
-			lda #0x82			; some colour for the character
-			sta 0x8370+3
-
-
-			lda #0b00010000		; gotox
-			sta 0x8370+4
-			lda #0x00
-			sta 0x8370+5
-
-			lda #0x40			; gotox 320
-			sta 0xa370+4
-			lda #0x01
-			sta 0xa370+5
-
-
 			jsr unmap_all
 
 			; end test drawing colours into grid
