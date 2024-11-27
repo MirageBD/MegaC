@@ -59,20 +59,27 @@ OBJS_DEBUG = $(ASM_SRCS:%.s=$(EXE_DIR)/%-debug.o) $(C_SRCS:%.c=$(EXE_DIR)/%-debu
 
 BINFILES  = $(BIN_DIR)/glacial_chars0.bin
 BINFILES += $(BIN_DIR)/glacial_pal0.bin
+BINFILES += $(BIN_DIR)/shiftgrid_chars0.bin
 
 BINFILESMC  = $(BIN_DIR)/glacial_chars0.bin.addr.mc
 BINFILESMC += $(BIN_DIR)/glacial_pal0.bin.addr.mc
+BINFILESMC += $(BIN_DIR)/shiftgrid_chars0.bin.addr.mc
 
 # -----------------------------------------------------------------------------
 
 $(BIN_DIR)/glacial_chars0.bin: $(BIN_DIR)/glacial.bin
 	$(MC) $< cm1:2 d1:0 cl1:20000 rc1:0
 
+$(BIN_DIR)/shiftgrid_chars0.bin: $(BIN_DIR)/shiftgrid.bin
+	$(MC) $< cm1:1 d1:0 cl1:20000 rc1:0
+
 $(BIN_DIR)/alldata.bin: $(BINFILES)
 	$(MEGAADDRESS) $(BIN_DIR)/glacial_chars0.bin      08100000
 	$(MEGAADDRESS) $(BIN_DIR)/glacial_pal0.bin        0000c000
+	$(MEGAADDRESS) $(BIN_DIR)/shiftgrid_chars0.bin    0000c800
 	$(MEGACRUNCH) $(BIN_DIR)/glacial_chars0.bin.addr
 	$(MEGACRUNCH) $(BIN_DIR)/glacial_pal0.bin.addr
+	$(MEGACRUNCH) $(BIN_DIR)/shiftgrid_chars0.bin.addr
 	$(MEGAIFFL) $(BINFILESMC) $(BIN_DIR)/alldata.bin
 
 $(EXE_DIR)/%.o: %.s
@@ -116,21 +123,21 @@ run: $(EXE_DIR)/yamp65.d81
 #	cc6502 --target=mega65 $(SRC_DIR)/skeleton.c --assembly-source=$(EXE_DIR)/skeleton.s
 
 ifeq ($(megabuild), 1)
-	$(MEGAFTP) -c "put .\exe\hello.d81 hello.d81" -c "quit"
-	$(EL) -m HELLO.D81 -r $(EXE_DIR)/hello.prg.mc
+	$(MEGAFTP) -c "put .\exe\yamp65.d81 yamp65.d81" -c "quit"
+	$(EL) -m YAMP65.D81 -r $(EXE_DIR)/hello.prg.mc
 ifeq ($(attachdebugger), 1)
 	m65dbg --device /dev/ttyS2
 endif
 else
 ifeq ($(attachdebugger), 1)
-	cmd.exe /c "$(XMEGA65) -uartmon :4510 -autoload -8 $(EXE_DIR)/hello.d81" & m65dbg -l tcp 4510
+	cmd.exe /c "$(XMEGA65) -uartmon :4510 -autoload -8 $(EXE_DIR)/yamp65.d81" & m65dbg -l tcp 4510
 else
 #	mega65_ftp -d "C:\Users\larsv\AppData\Roaming\xemu-lgb\mega65\mega65.img" -c "put .\bin\song.mod song.mod" -c "quit"
 #	mega65_ftp -d "C:\Users\larsv\AppData\Roaming\xemu-lgb\mega65\mega65.img" -c "put .\bin\elmar.mod elmar.mod" -c "quit"
-	cmd.exe /c "$(XMEGA65) -autoload -8 $(EXE_DIR)/hello.d81"
+	cmd.exe /c "$(XMEGA65) -autoload -8 $(EXE_DIR)/yamp65.d81"
 endif
 endif
 
 clean:
 	-rm -f $(OBJS) $(OBJS:%.o=%.lst) $(OBJS_DEBUG) $(OBJS_DEBUG:%.o=%.lst)
-	-rm -f $(EXE_DIR)/hello.d81 $(EXE_DIR)/hello.elf $(EXE_DIR)/hello.prg $(EXE_DIR)/hello.prg.mc $(EXE_DIR)/hello.lst $(EXE_DIR)/hello-debug.lst
+	-rm -f $(EXE_DIR)/yamp65.d81 $(EXE_DIR)/yamp65.elf $(EXE_DIR)/hello.prg $(EXE_DIR)/hello.prg.mc $(EXE_DIR)/hello.lst $(EXE_DIR)/hello-debug.lst

@@ -219,7 +219,7 @@ amok:
 			;lda #0x88
 			;sta 0x8370+2
 amok2:
-			lda #0x88			; some colour for the character
+			lda #0x82			; some colour for the character
 			sta 0x8370+3
 
 
