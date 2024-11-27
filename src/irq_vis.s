@@ -211,7 +211,9 @@ amok:
 			lda #0x00
 			sta 0xa370+1
 
-			lda #0x20			; some character
+			lda amok+1			; some character
+			and #0x07
+			ora #0x20
 			sta 0xa370+2
 			lda #0x03
 			sta 0xa370+3
