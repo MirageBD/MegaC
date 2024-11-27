@@ -39,8 +39,8 @@ irq_vis:
 			phz
 
 			jsr modplay_play
-			jsr program_update_vis
 			jsr keyboard_update
+			jsr program_update_vis
 
 			lda #0xff
 			sta 0xd012
@@ -82,7 +82,7 @@ waitr1$:	cmp 0xd012
 
 			inc flipflop
 			lda flipflop
-			cmp #02
+			cmp #04
 			bmi dontfade$
 			lda #0
 			sta flipflop
@@ -416,28 +416,28 @@ analyzechannels:
 			; decrease sampmax somewhat		
 			sec
 			lda samp1max
-			sbc #0x20
+			sbc #0x10
 			bcs b1$
 			lda #0x00
 b1$:		sta samp1max
 
 			sec
 			lda samp2max
-			sbc #0x20
+			sbc #0x10
 			bcs b2$
 			lda #0x00
 b2$:		sta samp2max
 
 			sec
 			lda samp3max
-			sbc #0x20
+			sbc #0x10
 			bcs b3$
 			lda #0x00
 b3$:		sta samp3max
 
 			sec
 			lda samp4max
-			sbc #0x20
+			sbc #0x10
 			bcs b4$
 			lda #0x00
 b4$:		sta samp4max

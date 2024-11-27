@@ -27,6 +27,7 @@
 
 void keyboard_update();
 uint8_t keyboard_keyreleased(uint8_t key);
+uint8_t keyboard_anykeyreleased();
 uint8_t keyboard_keypressed(uint8_t key);
 
 #endif

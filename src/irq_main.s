@@ -20,8 +20,8 @@ irq_main:
 			sta 0xd021
 
 			jsr fontsys_clearscreen
-			jsr program_update
 			jsr keyboard_update
+			jsr program_update
 
 			lda #0x32 + 12*8 + 1
 			sta 0xd012

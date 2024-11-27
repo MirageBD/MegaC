@@ -123,6 +123,16 @@ uint8_t keyboard_keyreleased(uint8_t key)
 	return 0;
 }
 
+uint8_t keyboard_anykeyreleased()
+{
+	if(keyboard_pressed == 0xff) // no key pressed
+	{
+		if(keyboard_prevpressed != 0xff) // but there was one previously
+			return 1;
+	}
+	return 0;
+}
+
 uint8_t keyboard_keypressed(uint8_t key)
 {
 	if(keyboard_pressed == key)

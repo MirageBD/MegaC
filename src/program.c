@@ -141,6 +141,7 @@ uint8_t program_entryisdir()
 
 void program_processdirentry()
 {
+	/*
 	if(program_transbuf[0x00] == 0x2e)
 	{
 		if(program_transbuf[0x01] == 0x00) // "." - dont process
@@ -150,6 +151,7 @@ void program_processdirentry()
 			if(program_transbuf[0x02] == 0x00) // ".." - dont process
 				return;
 	}
+	*/
 
 	// convert ascii name to font chars and append to end of entry structure
 	for(uint16_t i = 0; i < 64; i++)
@@ -491,7 +493,7 @@ void program_main_processkeyboard()
 
 void program_vis_processkeyboard()
 {
-	if(keyboard_keyreleased(KEYBOARD_ESC))
+	if(keyboard_anykeyreleased())
 	{
 		mp_done = 1;
 		modplay_mute();
