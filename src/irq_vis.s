@@ -230,7 +230,7 @@ fadescreen:
 			sta zp_cadr+1
 
 			ldx #25
-			ldy #0x00
+			ldy #0
 fs1$:		lda (zp_cadr),y
 			and #0xf0
 			sta tempme
@@ -238,8 +238,8 @@ fs1$:		lda (zp_cadr),y
 			and #0x0f
 			cmp #1
 			beq fs2$
-			sec
-			sbc #1
+			dec a
+			; sbc #1
 fs2$:		ora tempme
 			sta (zp_cadr),y
 			iny

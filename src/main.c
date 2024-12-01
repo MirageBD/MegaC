@@ -11,6 +11,8 @@ void main()
 {
 	SEI
 
+	__asm(" dec a");
+
 	CPU.PORT = 0b00110101;										// 0x35 = I/O area visible at $D000-$DFFF, RAM visible at $A000-$BFFF and $E000-$FFFF.
 	VIC4.HOTREG = 0;											// disable hot registers
 	UNMAP_ALL													// unmap any mappings
