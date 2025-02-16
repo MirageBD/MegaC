@@ -8,15 +8,9 @@
 		(type ram)
 	)
 
-	(memory storage0 (address (#x0a00 . #x0fff)) (type any)
+	(memory prog (address (#x1200 . #x6fff)) (type any)
 		(section
-			(data0a00 #x0a00)
-		)
-	)
-
-	(memory prog (address (#x0a00 . #x6fff)) (type any)
-		(section
-			(programStart #x1000)
+			(programStart #x1200)
 			startup
 			code
 			data
